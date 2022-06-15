@@ -1,6 +1,6 @@
 <div align="center">
 
-# cLacia
+# Lacia
 
 _A modern `Json-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls.._
 
