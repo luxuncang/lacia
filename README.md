@@ -15,7 +15,7 @@ _A modern `Json-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rp
 ## 安装
 
 ```bash
-jsonrpc-pypip install lacia
+pip install lacia
 ```
 
 ```bash
