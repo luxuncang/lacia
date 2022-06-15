@@ -1,0 +1,30 @@
+[project]
+name = "lacia"
+version = "0.0.1"
+description = "A modern `Json-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
+authors = [
+    {name = "luxuncang", email = "luxuncang@qq.com"},
+]
+dependencies = [
+    "nest-asyncio>=1.5.5",
+    "typing-extensions>=4.2.0",
+    "richuru>=0.1.1",
+    "pydantic>=1.9.1",
+    "aiohttp>=3.8.1"]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "MIT"}
+[project.optional-dependencies]
+
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pre-commit>=2.19.0",
+    "black>=22.3.0",
+    "isort>=5.10.1",
+    "flake8>=4.0.1",
+]
+
+[build-system]
+requires = ["pdm-pep517>=0.12.0"]
+build-backend = "pdm.pep517.api"
