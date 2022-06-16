@@ -39,7 +39,7 @@ pdm add lacia
 * [X] 支持完备的链式调用
 * [X] 自动 Json-Rpc 规范转换
 * [X] 双向流式传输
-* [ ] IDE 支持
+* [ ] IDE 支持 ([#1](https://github.com/luxuncang/lacia/issues/1))
 * [ ] 分布式Server
 
 ## 使用
@@ -223,3 +223,54 @@ async def main():
 loop.run_until_complete(main())
 loop.run_forever()
 ```
+
+
+### IDE 支持(实验性)
+
+**Server 端**
+
+```python
+import asyncio
+from lacia import JsonRpc, AioServer
+
+async def async_generator(i: int = 10):
+    for i in range(i):
+        await asyncio.sleep(0.5)
+        yield i
+
+expose = {'async_generator': async_generator}
+
+loop = asyncio.new_event_loop()
+
+rpc = JsonRpc('/test', namespace=expose, loop=loop)
+
+rpc.rpc.generate_pyi('CustomSchema') # Generate Pyi file in ./laciaschema/CustomSchema.pyi
+
+rpc.run_server(AioServer())
+```
+
+**Client 端**
+
+```python
+import asyncio
+from lacia import JsonRpc, AioClient, logger
+from laciaschema.CustomSchema import CustomSchema
+
+loop = asyncio.new_event_loop()
+
+irpc = JsonRpc('/test', loop=loop)
+rpc = irpc.with_schema(CustomSchema) # Use CustomSchema as schema and 
+
+async def main():
+    await irpc.run_client(AioClient())
+
+    async for i in rpc.async_generator(5): # type: ignore
+        logger.info(i)
+
+loop.run_until_complete(main())
+loop.run_forever()
+```
+
+![1655394626096](image/README/1655394626096.png)
+
+> IDE 现只支持一般函数和基础类型
