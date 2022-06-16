@@ -38,4 +38,6 @@ async def repeat():
 
 rpc.add_namespace('repeat', repeat)
 
+rpc.generate_pyi('CustomSchema') # Generate Pyi file
+
 rpc.run_server(AioServer())
