@@ -1,7 +1,7 @@
 import asyncio
 import uuid
-from typing import Callable
 from json.decoder import JSONDecodeError
+from pathlib import Path
 
 from pydantic.error_wrappers import ValidationError
 
@@ -24,8 +24,9 @@ from ..standard import (
 )
 from ..logs import logger
 from ..exception import WebSocketClosedError
+from ..schema import schema_gen
 from ..utils import run_fm, asyncio_loop_apply
-from ..typing import Any, Dict, Optional, Union, Param, TYPE_CHECKING, AsyncGenerator
+from ..typing import Any, Dict, Optional, Union, Param, TYPE_CHECKING, TypeVar, cast, Type, Callable
 
 if TYPE_CHECKING:
     from ..network.client.aioclient import AioClient, BaseClient
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     Server = Union[AioServer, BaseServer]
     Client = Union[AioClient, BaseClient]
 
+Schema = TypeVar("Schema")
 
 class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
     def __init__(
@@ -253,3 +255,18 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
 
     def add_namespace(self, name: str, v: Any):
         self._namespace[name] = v
+    
+    def with_schema(self, schema: Type[Schema]) -> Schema:
+        return cast(schema, self)
+    
+    def generate_pyi(self, name: str, path: Optional[str] = None):
+        if path == None:
+            p = Path.cwd() / 'laciaschema'
+        else:
+            p = Path(path)
+        p.mkdir(parents=True, exist_ok=True)
+        with (p / f'{name}.pyi').open('w') as f:
+            f.write(schema_gen(name, self._namespace))
+        with (p / f'{name}.py').open('w') as f:
+            f.write(f"class {name}: ...\n")
+        logger.success(f"{name}.pyi and {name}.py generated in {p}")
