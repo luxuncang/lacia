@@ -21,15 +21,16 @@ from typing import (
     Generator,
     AsyncGenerator,
     TypedDict,
+    Coroutine,
     Type,
     Generic,
     Annotated,
+    cast,
     get_args,
     get_origin,
     get_type_hints,
     overload,
 )
-from xmlrpc.client import Server
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -49,3 +50,5 @@ class JsonRpcCode(int, Enum):
     InternalError = -32603
     ServerError = -32000
     StopAsyncIterationError = -32099
+
+Code = Union[int, JsonRpcCode]

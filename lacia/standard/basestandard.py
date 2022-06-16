@@ -3,17 +3,33 @@ import asyncio
 from pydantic import BaseModel
 
 from ..exception import JsonRpcException
-from ..typing import Union, Tuple, List, Iterator, Dict, Optional, Iterable, Param, JsonRpcCode, TYPE_CHECKING, TypeVar, Generic, Any
+from ..typing import (
+    Union,
+    Tuple,
+    List,
+    Iterator,
+    Dict,
+    ParamSpec,
+    Optional,
+    Iterable,
+    Param,
+    Code,
+    JsonRpcCode,
+    TYPE_CHECKING,
+    TypeVar,
+    Generic,
+    Any,
+)
 
 if TYPE_CHECKING:
     from ..core.core import JsonRpc
     from .jsonrpc2 import JsonRpc2Request, JsonRpc2Response
     from .jsonrpcX import JsonRpcXRequest, JsonRpcXResponse
 
-Code = Union[int, JsonRpcCode]
 
 T_Res = TypeVar("T_Res", "JsonRpcXResponse", "JsonRpc2Response")
 T_Req = TypeVar("T_Req", "JsonRpcXRequest", "JsonRpc2Request")
+
 
 class JsonRpcError(BaseModel):
     code: Code
@@ -21,7 +37,7 @@ class JsonRpcError(BaseModel):
     data: Optional[Param] = None
 
 
-class Assign(Generic[T_Res, T_Req]): # TODO 与其他Json-RPC实现进行交互时可能存在ID冲突
+class Assign(Generic[T_Res, T_Req]):  # TODO 与其他Json-RPC实现进行交互时可能存在ID冲突
 
     future: Dict[str, asyncio.Event] = {}
     result: Dict[str, Any] = {}
@@ -36,23 +52,22 @@ class Assign(Generic[T_Res, T_Req]): # TODO 与其他Json-RPC实现进行交互�
         else:
             data = cls.result[uid]
             return data
-        if 'error' in data.dict(exclude_unset = True) and data.error != None:
+        if "error" in data.dict(exclude_unset=True) and data.error != None:
             if data.error.code == JsonRpcCode.StopAsyncIterationError:
                 cls.future.pop(uid, None)
                 return JsonRpcCode.StopAsyncIterationError
             raise JsonRpcException(data.error.code, data.error.message, data.error.data)
-        elif 'result' in data.dict(exclude_unset = True) and data.result != None:
+        elif "result" in data.dict(exclude_unset=True) and data.result != None:
             return data.result
         raise TypeError("JsonRpc Response Obj Error")
 
     @classmethod
     def post_data(cls, data: Any, pop: bool = True):
         uid = data.id
-        cls.future[uid].set() 
+        cls.future[uid].set()
         if pop:
             cls.future.pop(uid, None)
         cls.result[uid] = data
-
 
 
 class ProxyObj:
@@ -72,7 +87,7 @@ class ProxyObj:
         return iter(self.__methods)
 
     def __aiter__(self):
-        self.__methods.append('__aiter__')
+        self.__methods.append("__aiter__")
         self.__aiter_request = False
         return self
 
@@ -91,7 +106,10 @@ class ProxyObj:
                     data = await Assign.receiver(request.id)
                 except JsonRpcException as e:
                     raise e
-                if isinstance(data, JsonRpcCode) and data == JsonRpcCode.StopAsyncIterationError:
+                if (
+                    isinstance(data, JsonRpcCode)
+                    and data == JsonRpcCode.StopAsyncIterationError
+                ):
                     raise StopAsyncIteration
                 return data
         raise AttributeError("client is not running")
@@ -108,6 +126,13 @@ class ProxyObj:
                 return data
         raise AttributeError("client is not running")
 
+
+class Proxy:
+    def __getattr__(self, name) -> ProxyObj:
+        proxy = getattr(ProxyObj(self), name)  # type: ignore
+        return proxy
+
+
 def analysis_proxy(
     proxy: Union[ProxyObj, Iterable[Union[str, Tuple[tuple, dict]]]]
 ) -> Iterator:
@@ -116,10 +141,3 @@ def analysis_proxy(
             yield {"method": "__getattr__", "args": (i,), "kwargs": {}}
         else:
             yield {"method": "__call__", "args": i[0], "kwargs": i[1]}
-
-
-class Proxy:
-    def __getattr__(self, name) -> ProxyObj:
-        proxy = getattr(ProxyObj(self), name) # type: ignore
-        return proxy
-    
