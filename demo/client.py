@@ -24,7 +24,7 @@ async def main():
     logger.info(res3)
     logger.info(res4)
 
-    async for i in rpc.async_generator(5): # type: ignore
+    async for i in rpc.async_generator(5):
         logger.info(i)
 
 loop.run_until_complete(main())
