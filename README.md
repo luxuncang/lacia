@@ -271,6 +271,6 @@ loop.run_until_complete(main())
 loop.run_forever()
 ```
 
-![1655394626096](image/README/1655394626096.png)
+![1655481388512](image/README/1655481388512.png)
 
-> IDE 现只支持一般函数和基础类型
+> IDE 现只支持函数和基础类型, Class 正在重构中 
