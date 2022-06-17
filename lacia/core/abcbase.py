@@ -1,7 +1,7 @@
 from abc import ABC
 from enum import Enum
 
-from ..typing import Dict, Callable,  Any, Union, TYPE_CHECKING
+from ..typing import Dict, Callable, Any, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..network.client.aioclient import AioClient, BaseClient
