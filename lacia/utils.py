@@ -47,7 +47,10 @@ def asyncio_loop_apply(loop: Optional[asyncio.AbstractEventLoop] = None) -> None
 async def run_obj(obj: Any, method: str, args: tuple = (), kwargs: dict = {}) -> Any:
 
     if method == "__getattr__":
-        obj = getattr(obj, args[0])
+        if args[0] == '__aiter__':
+            return obj
+        else:
+            obj = getattr(obj, args[0])
         return obj
     elif method == "__call__":
         if asyncio.iscoroutinefunction(obj):

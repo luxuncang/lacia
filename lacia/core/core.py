@@ -140,7 +140,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             else:
                 raise TypeError("message is not correctly")
             result = await run_fm(fm, self._namespace)
-            if (not isinstance(result, (int, dict, tuple, list, str, bool))) and result != None:
+            if hasattr(result, "__aiter__"):
                 await self.__handle_aiter(result, websocket, message)
             else:
                 await self.__send_result(websocket, message, result)
@@ -212,7 +212,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         await websocket.send_json(response)
 
     async def __handle_aiter(self, result, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]):
-        async for r in result():
+        async for r in result:
             await self.__send_result(websocket, message, r)
             await Assign.receiver(message.id, False)
         await self.__send_error_response(websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict())
