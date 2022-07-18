@@ -22,11 +22,24 @@ from ..standard import (
     JsonRpcError,
     JsonRpcCode,
 )
+
+from ..state import State
 from ..logs import logger
 from ..exception import WebSocketClosedError
 from ..schema import schema_gen
 from ..utils import run_fm, asyncio_loop_apply
-from ..typing import Any, Dict, Optional, Union, Param, TYPE_CHECKING, TypeVar, cast, Type, Callable
+from ..typing import (
+    Any,
+    Dict,
+    Optional,
+    Union,
+    Param,
+    TYPE_CHECKING,
+    TypeVar,
+    cast,
+    Type,
+    Callable,
+)
 
 if TYPE_CHECKING:
     from ..network.client.aioclient import AioClient, BaseClient
@@ -38,6 +51,7 @@ if TYPE_CHECKING:
 
 Schema = TypeVar("Schema")
 
+
 class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
     def __init__(
         self,
@@ -48,6 +62,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         jsonrpc_mode: JsonRpcMode = JsonRpcMode.Auto,
         namespace: Dict[str, Any] = {},
         loop: Optional[asyncio.AbstractEventLoop] = None,
+        debug: bool = False,
     ):
         self._PATH = path
         self._HOST = host
@@ -57,6 +72,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         self._namespace = namespace
         self._loop = loop or asyncio.get_event_loop()
         asyncio_loop_apply(self._loop)  # TODO: 不兼容审查
+        State.debug = debug
 
     def run_server(self, server: "Server"):
         self._server = server
@@ -65,7 +81,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
 
     async def run_client(self, client: "Client"):
         self._client = client
-        await client.start(path=f"http://{self._HOST}:{self._PORT}{self._PATH}")
+        await client.start(path=f"{self._HOST}:{self._PORT}{self._PATH}")
         self._loop.create_task(self.__listen_server())
 
     async def __listening_client(self, websocket) -> None:
@@ -211,11 +227,15 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             raise ValueError("JsonRpcMode is not set correctly")
         await websocket.send_json(response)
 
-    async def __handle_aiter(self, result, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]):
+    async def __handle_aiter(
+        self, result, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]
+    ):
         async for r in result:
             await self.__send_result(websocket, message, r)
             await Assign.receiver(message.id, False)
-        await self.__send_error_response(websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict())
+        await self.__send_error_response(
+            websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict()
+        )
 
     def auto_standard(self, proxy: ProxyObj):  # TODO: 重构
         try:
@@ -241,11 +261,11 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         raise ValueError("JsonRpcMode is not set correctly")
 
     def auto_request_response(self, message: dict):
-        if 'method' in message:
-            return 'request'
-        if 'result' in message or 'error' in message:
-            return 'response'
-        raise JSONDecodeError("message is not correctly", '', 0)
+        if "method" in message:
+            return "request"
+        if "result" in message or "error" in message:
+            return "response"
+        raise JSONDecodeError("message is not correctly", "", 0)
 
     async def __aenter__(self) -> "JsonRpc":
         ...
@@ -255,18 +275,18 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
 
     def add_namespace(self, name: str, v: Any):
         self._namespace[name] = v
-    
+
     def with_schema(self, schema: Type[Schema]) -> Schema:
         return cast(schema, self)
-    
+
     def generate_pyi(self, name: str, path: Optional[str] = None):
         if path == None:
-            p = Path.cwd() / 'laciaschema'
+            p = Path.cwd() / "laciaschema"
         else:
             p = Path(path)
         p.mkdir(parents=True, exist_ok=True)
-        with (p / f'{name}.pyi').open('w') as f:
+        with (p / f"{name}.pyi").open("w") as f:
             f.write(schema_gen(name, self._namespace))
-        with (p / f'{name}.py').open('w') as f:
+        with (p / f"{name}.py").open("w") as f:
             f.write(f"class {name}: ...\n")
         logger.success(f"{name}.pyi and {name}.py generated in {p}")

@@ -8,7 +8,7 @@ expose = {
 
 loop = asyncio.new_event_loop()
 
-irpc = JsonRpc('/test', namespace=expose, loop=loop)
+irpc = JsonRpc('/test', namespace=expose, loop=loop, debug=True)
 rpc = irpc.with_schema(CustomSchema)
 
 async def main():

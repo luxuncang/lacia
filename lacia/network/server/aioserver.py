@@ -1,6 +1,5 @@
 import asyncio
-import json
-from logging import info
+import orjson
 
 from aiohttp import web, WSCloseCode
 import aiohttp
@@ -58,8 +57,8 @@ class AioServer(BaseServer):
     async def receive_json(self, websocket: web.WebSocketResponse):
         data = await self.receive(websocket)
         if data.type == aiohttp.WSMsgType.TEXT:
-            data = json.loads(data.data) # type: ignore
-            logger.info(f"{self.__class__.__name__} received: {data}")
+            data = orjson.loads(data.data) # type: ignore
+            # logger.info(f"{self.__class__.__name__} received: {data}")
             return data
 
     async def receive_bytes(self, websocket: web.WebSocketResponse):

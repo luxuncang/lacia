@@ -1,4 +1,4 @@
-import json
+import orjson
 import aiohttp
 
 from ..abcbase import BaseClient
@@ -12,7 +12,7 @@ class AioClient(BaseClient):
         self.session = aiohttp.ClientSession()
 
     async def start(self, path: str) -> "AioClient":
-        self.ws = await self.session.ws_connect(path)
+        self.ws = await self.session.ws_connect(f"http://{path}")
         logger.success(f"📡 {self.__class__.__name__} success connected: {path}.")
         return self
 
@@ -26,8 +26,8 @@ class AioClient(BaseClient):
     async def receive_json(self):
         data = await self.receive()
         if data.type == aiohttp.WSMsgType.TEXT:
-            data = json.loads(data.data)
-            logger.info(f"{self.__class__.__name__} received: {data}")
+            data = orjson.loads(data.data)
+            # logger.info(f"{self.__class__.__name__} received: {data}")
             return data  # type: ignore
 
     async def receive_bytes(self):
@@ -54,7 +54,7 @@ class AioClient(BaseClient):
         return await self.ws.send_bytes(message)
 
     async def send_json(self, message: Message) -> None:
-        logger.info(f'{self.__class__.__name__} send: {message}')
+        # logger.info(f'{self.__class__.__name__} send: {message}')
         return await self.ws.send_json(message)
 
     async def close(

@@ -29,7 +29,7 @@ expose = {
 
 loop = asyncio.new_event_loop()
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+rpc = JsonRpc('/test', namespace=expose, loop=loop, debug=True)
 
 async def repeat():
     ws = rpc._server.active_connections[0]

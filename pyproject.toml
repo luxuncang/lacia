@@ -1,6 +1,6 @@
 [project]
 name = "lacia"
-version = "0.0.1"
+version = "0.0.2"
 description = "A modern `Json-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
 authors = [
     {name = "luxuncang", email = "luxuncang@qq.com"},
@@ -10,7 +10,9 @@ dependencies = [
     "typing-extensions>=4.2.0",
     "richuru>=0.1.1",
     "pydantic>=1.9.1",
-    "aiohttp>=3.8.1"]
+    "aiohttp>=3.8.1",
+    "orjson>=3.7.7",
+]
 requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}

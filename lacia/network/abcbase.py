@@ -1,11 +1,12 @@
-from abc import ABC, abstractmethod
 import asyncio
+from abc import ABC, abstractmethod
 
-from ..typing import Message, Optional, Iterable, Tuple, AsyncIterator, TypeVar, List, Generic, Generator
+from ..hook import Hook
+from ..typing import Message, Optional, Tuple, TypeVar, List, Generic, Generator
 
 W = TypeVar('W')
 
-class BaseServer(ABC, Generic[W]):
+class BaseServer(Hook, Generic[W]):
     active_connections: List[Tuple[W, asyncio.Event]]
 
     @abstractmethod
@@ -54,7 +55,7 @@ class BaseServer(ABC, Generic[W]):
     def set_on_ws(self, Callable, *args, **kwargs):
         ...
 
-class BaseClient(ABC):
+class BaseClient(Hook):
     @abstractmethod
     async def receive(self) -> Message:
         ...

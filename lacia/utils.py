@@ -1,12 +1,13 @@
 import sys
 import atexit
 import asyncio
+import inspect
 from pathlib import Path
 
 from nest_asyncio import apply
 from pydantic import BaseModel
 
-from .typing import PyMode, Optional, Any, List, Callable
+from .typing import PyMode, Optional, Any, List, Callable, Dict
 
 
 class CallObj(BaseModel):
@@ -24,6 +25,14 @@ class CallObj(BaseModel):
 
     async def __call__(self):
         return await self.method(*self.args, **self.kwargs)
+
+
+def get_func_bind(func: Callable, *args, **kwargs) -> Dict[str, Any]:
+    """
+    Get the function binding.
+    """
+    sig = inspect.signature(func)
+    return {k: v for k, v in sig.bind(*args, **kwargs).arguments.items()}
 
 
 def get_python_mode() -> PyMode:  # TODO: There is a bug when the main file and the interpreter working file are in the same directory
@@ -47,7 +56,7 @@ def asyncio_loop_apply(loop: Optional[asyncio.AbstractEventLoop] = None) -> None
 async def run_obj(obj: Any, method: str, args: tuple = (), kwargs: dict = {}) -> Any:
 
     if method == "__getattr__":
-        if args[0] == '__aiter__':
+        if args[0] == "__aiter__":
             return obj
         else:
             obj = getattr(obj, args[0])
