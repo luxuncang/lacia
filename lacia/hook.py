@@ -195,9 +195,6 @@ class Hook(metaclass = MetaHook):
 async def receive_json_hook(obj, objer, name, *args, **kwargs):
     res = await objer(*args, **kwargs)
     if State.debug:
-        # print(obj, objer)
-        # pprint(dir(obj))
-        # pprint(dir(objer))
         logger.info(f"{obj.__self__.__class__.__name__} received: {res}")
     return res
 
