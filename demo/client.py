@@ -1,9 +1,9 @@
 import asyncio
-from lacia import JsonRpc, AioClient, logger
+from lacia import JsonRpc, AioClient, logger, __version__
 from laciaschema.CustomSchema import CustomSchema
 
 expose = {
-    'value': 'PyJsonRpc Client 0.0.1'
+    'value': f'PyJsonRpc Client {__version__}'
 }
 
 loop = asyncio.new_event_loop()
