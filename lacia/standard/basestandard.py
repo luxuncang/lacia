@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+from functools import lru_cache
 
 from pydantic import BaseModel
 
@@ -9,7 +11,6 @@ from ..typing import (
     List,
     Iterator,
     Dict,
-    ParamSpec,
     Optional,
     Iterable,
     Param,
@@ -112,6 +113,10 @@ class ProxyObj:
                 ):
                     raise StopAsyncIteration
                 return data
+        # elif hasattr(self.__self, "_server"):
+        #     frame = inspect.currentframe()
+        #     ws = self.__get_ws(frame)
+        #     return await self.__self.send_request_server(self, ws)    
         raise AttributeError("client is not running")
 
     def __await__(self):
@@ -124,13 +129,34 @@ class ProxyObj:
                 except JsonRpcException as e:
                     raise e
                 return data
-        raise AttributeError("client is not running")
+        frame = inspect.currentframe()
+        ws = self.__self.get_ws(frame)
+        data = yield from self.__self.send_request_server(self, ws).__await__()
+        return data
 
 
 class Proxy:
     def __getattr__(self, name) -> ProxyObj:
         proxy = getattr(ProxyObj(self), name)  # type: ignore
         return proxy
+
+    @classmethod
+    @lru_cache(1024)
+    def get_ws(cls, frame):
+        for local in cls.__frame_locals(frame):
+            for k,v in local.items():
+                if 'websocket' == k: # TODO: 重构
+                    return v
+                # if 'exce_rpc' in k and 'websocket' in local:
+                #     return local.get('websocket')
+        raise AttributeError("websocket is not found")
+
+    @staticmethod
+    def __frame_locals(frame):
+        frame = frame.f_back  # type: ignore
+        while frame:
+            yield frame.f_locals
+            frame = frame.f_back
 
 
 def analysis_proxy(

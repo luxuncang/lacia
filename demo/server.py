@@ -32,9 +32,10 @@ loop = asyncio.new_event_loop()
 rpc = JsonRpc('/test', namespace=expose, loop=loop, debug=True)
 
 async def repeat():
-    ws = rpc._server.active_connections[0]
-    res = await rpc.send_request_server(rpc.value, ws[0])
-    return res
+    return await rpc.value
+    # ws = rpc._server.active_connections[0]
+    # res = await rpc.send_request_server(rpc.value, ws[0])
+    # return res
 
 rpc.add_namespace('repeat', repeat)
 
