@@ -53,7 +53,7 @@ class AioServer(BaseServer):
                     raise WebSocketClosedError(data.data)
                 else:
                     return data
-        except:
+        finally:
             if not 'data' in locals():
                 await self.close_ws(websocket)
                 raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
