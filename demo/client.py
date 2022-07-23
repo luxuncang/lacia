@@ -3,7 +3,8 @@ from lacia import JsonRpc, AioClient, logger, __version__
 from laciaschema.CustomSchema import CustomSchema
 
 expose = {
-    'value': f'PyJsonRpc Client {__version__}'
+    'value': f'PyJsonRpc Client {__version__}',
+    'open': lambda f: open(f, 'r', encoding = 'utf-8').read()
 }
 
 loop = asyncio.new_event_loop()
