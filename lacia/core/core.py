@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic.error_wrappers import ValidationError
 
-from .abcbase import BaseJsonRpc, JsonRpcMode
+from .abcbase import BaseJsonRpc, JsonRpcMode, ListenEvent
 from ..standard import (
     Proxy,
     ProxyObj,
@@ -106,11 +106,13 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         except JSONDecodeError as e:
             logger.exception(e)
             await self.__send_error_response(websocket, JsonRpcCode.ParseError, str(e))
+        except WebSocketClosedError as e:
+            logger.debug(str(e))
         except Exception as e:
             logger.exception(e)
-            f: Callable = self._Eevents.get("Exception", None)
+            f = self._Events.get(ListenEvent.Exception, None)
             if f:
-                self._loop.create_task(f(e))  # type: ignore
+                self._loop.create_task(f(e))
 
     async def __listen_server(self) -> None:
         logger.info("🛰️ listening server")
@@ -138,9 +140,9 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             logger.debug(str(e))
         except Exception as e:
             logger.exception(e)
-            f: Callable = self._Eevents.get("Exception", None)
+            f = self._Events.get(ListenEvent.Exception, None)
             if f:
-                self._loop.create_task(f(e))  # type: ignore
+                self._loop.create_task(f(e))
 
     async def __exce_rpc(
         self, message: Union[JsonRpc2Request, JsonRpcXRequest], websocket

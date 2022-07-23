@@ -17,22 +17,26 @@ class AioClient(BaseClient):
         return self
 
     async def receive(self):
-        data = await self.ws.receive()
-        if data.type == aiohttp.WSMsgType.CLOSED:
-            await self.close()
-            raise WebSocketClosedError(f'{self.__class__.__name__} closed.')
-        return data
+        try:
+            async for data in self.ws:
+                if data.type == aiohttp.WSMsgType.close:
+                    raise WebSocketClosedError(data.data)
+                else:
+                    return data
+        except:
+            if not 'data' in locals():
+                await self.close()
+                raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
 
     async def receive_json(self):
         data = await self.receive()
-        if data.type == aiohttp.WSMsgType.TEXT:
+        if data and data.type == aiohttp.WSMsgType.TEXT:
             data = orjson.loads(data.data)
-            # logger.info(f"{self.__class__.__name__} received: {data}")
-            return data  # type: ignore
+            return data
 
     async def receive_bytes(self):
         data = await self.receive()
-        if data.type == aiohttp.WSMsgType.BINARY:
+        if data and data.type == aiohttp.WSMsgType.BINARY:
             return data.data
 
     async def iter_json(self) -> AsyncGenerator[Message, None]:
@@ -54,7 +58,6 @@ class AioClient(BaseClient):
         return await self.ws.send_bytes(message)
 
     async def send_json(self, message: Message) -> None:
-        # logger.info(f'{self.__class__.__name__} send: {message}')
         return await self.ws.send_json(message)
 
     async def close(

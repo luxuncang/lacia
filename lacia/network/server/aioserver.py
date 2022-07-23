@@ -27,6 +27,7 @@ class AioServer(BaseServer):
         self.app.add_routes([web.get(path, self.websocket_handler)])
         web.run_app(self.app, host=host, port=port, print=logger.info, loop=loop)  # type: ignore
 
+
     async def websocket_handler(self, request):
         event = asyncio.Event()
         ws = web.WebSocketResponse(autoclose=False)
@@ -35,7 +36,6 @@ class AioServer(BaseServer):
         logger.success(f"{str(ws)} connected.")
         self.on_ws_callback.add_args(ws)
         await self.on_ws_callback.method(ws)
-        # self.loop.create_task(self.on_ws_callback())
         await event.wait()
         return ws
 
@@ -47,23 +47,27 @@ class AioServer(BaseServer):
                 break
 
     async def receive(self, websocket: web.WebSocketResponse):
-        data = await websocket.receive()
-        if data.type == aiohttp.WSMsgType.CLOSED:
-            await self.close_ws(websocket)
-            raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
-        else:
-            return data
+        try:
+            async for data in websocket:
+                if data.type == aiohttp.WSMsgType.close:
+                    raise WebSocketClosedError(data.data)
+                else:
+                    return data
+        except:
+            if not 'data' in locals():
+                await self.close_ws(websocket)
+                raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
+            
 
     async def receive_json(self, websocket: web.WebSocketResponse):
         data = await self.receive(websocket)
-        if data.type == aiohttp.WSMsgType.TEXT:
+        if data and data.type == aiohttp.WSMsgType.TEXT:
             data = orjson.loads(data.data) # type: ignore
-            # logger.info(f"{self.__class__.__name__} received: {data}")
             return data
 
     async def receive_bytes(self, websocket: web.WebSocketResponse):
         data = await self.receive(websocket)
-        if data.type == aiohttp.WSMsgType.BINARY:
+        if data and data.type == aiohttp.WSMsgType.BINARY:
             return data.data
 
     async def iter_bytes(self, websocket: web.WebSocketResponse):
@@ -87,7 +91,6 @@ class AioServer(BaseServer):
     async def close_ws(self, websocket: web.WebSocketResponse):
         self.disconnect(websocket)
         logger.info(f"{str(websocket)} disconnected.")
-        # return await websocket.close()
 
     async def close(self):
         ...
