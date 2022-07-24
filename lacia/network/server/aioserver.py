@@ -1,8 +1,9 @@
 import asyncio
-import orjson
 
-from aiohttp import web, WSCloseCode
+import orjson
+import bson
 import aiohttp
+from aiohttp import web, WSCloseCode
 
 from ..abcbase import BaseServer
 from ...logs import logger
@@ -22,11 +23,10 @@ class AioServer(BaseServer):
         host: str,
         port: int,
         loop: Optional[asyncio.AbstractEventLoop] = None,
-    ) -> None: # TODO: 更友好的终端提示
+    ) -> None:  # TODO: 更友好的终端提示
         self.loop = loop or asyncio.get_event_loop()
         self.app.add_routes([web.get(path, self.websocket_handler)])
         web.run_app(self.app, host=host, port=port, print=logger.info, loop=loop)  # type: ignore
-
 
     async def websocket_handler(self, request):
         event = asyncio.Event()
@@ -54,15 +54,17 @@ class AioServer(BaseServer):
                 else:
                     return data
         finally:
-            if not 'data' in locals():
+            if not "data" in locals():
                 await self.close_ws(websocket)
                 raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
-            
 
     async def receive_json(self, websocket: web.WebSocketResponse):
         data = await self.receive(websocket)
         if data and data.type == aiohttp.WSMsgType.TEXT:
-            data = orjson.loads(data.data) # type: ignore
+            data = orjson.loads(data.data)
+            return data
+        elif data and data.type == aiohttp.WSMsgType.BINARY:
+            data = bson.loads(data.data)
             return data
 
     async def receive_bytes(self, websocket: web.WebSocketResponse):
@@ -82,7 +84,11 @@ class AioServer(BaseServer):
             if data:
                 yield data
 
-    async def send_json(self, websocket: web.WebSocketResponse, message: dict):
+    async def send_json(
+        self, websocket: web.WebSocketResponse, message: dict, binary: bool = True
+    ):
+        if binary:
+            return await websocket.send_bytes(bson.dumps(message))
         return await websocket.send_json(message)
 
     async def send_bytes(self, websocket: web.WebSocketResponse, message: bytes):
@@ -96,7 +102,7 @@ class AioServer(BaseServer):
         ...
 
     async def on_shutdown(self):
-        for ws,event in self.active_connections:
+        for ws, event in self.active_connections:
             await ws.close(code=WSCloseCode.GOING_AWAY, message=b"Server shutdown")
             event.set()
 

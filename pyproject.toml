@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=1.9.1",
     "aiohttp>=3.8.1",
     "orjson>=3.7.7",
+    "bson>=0.5.10",
 ]
 requires-python = ">=3.9"
 readme = "README.md"

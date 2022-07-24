@@ -37,7 +37,7 @@ class BaseServer(Hook, Generic[W]):
         ...
 
     @abstractmethod
-    async def send_json(self, websocket: W, message: Message) -> None:
+    async def send_json(self, websocket: W, message: Message, binary = True) -> None:
         ...
 
     @abstractmethod
@@ -85,7 +85,7 @@ class BaseClient(Hook):
         ...
 
     @abstractmethod
-    async def send_json(self, message: Message) -> None:
+    async def send_json(self, message: Message, binary = True) -> None:
         ...
 
     @abstractmethod

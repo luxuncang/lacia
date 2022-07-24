@@ -39,7 +39,7 @@ else:
 
 Message = Dict[str, Any]
 PyMode = Literal["REPL", "SCRIPT"]
-Param = Union[str, float, bool, None, Sequence[Any], MutableMapping[str, Any]]
+Param = Union[bytes, str, float, bool, None, Sequence[Any], MutableMapping[str, Any]]
 
 
 class JsonRpcCode(int, Enum):

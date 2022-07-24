@@ -1,5 +1,7 @@
-import orjson
 import aiohttp
+
+import orjson
+import bson
 
 from ..abcbase import BaseClient
 from ...logs import logger
@@ -33,6 +35,9 @@ class AioClient(BaseClient):
         if data and data.type == aiohttp.WSMsgType.TEXT:
             data = orjson.loads(data.data)
             return data
+        elif data and data.type == aiohttp.WSMsgType.BINARY:
+            data = bson.loads(data.data)
+            return data
 
     async def receive_bytes(self):
         data = await self.receive()
@@ -54,10 +59,12 @@ class AioClient(BaseClient):
     async def send(self, message) -> None:
         return await self.send(message)
 
-    async def send_bytes(self, message: bytes) -> None:
+    async def send_bytes(self, message: bytes):
         return await self.ws.send_bytes(message)
 
-    async def send_json(self, message: Message) -> None:
+    async def send_json(self, message: Message, binary: bool = True):
+        if binary:
+            return await self.ws.send_bytes(bson.dumps(message))
         return await self.ws.send_json(message)
 
     async def close(

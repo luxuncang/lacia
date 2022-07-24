@@ -182,13 +182,25 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
         self, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest], result: Param
     ) -> None:
         if isinstance(message, JsonRpc2Request):
-            await websocket.send_json(
-                JsonRpc2Response(id=message.id, result=result).dict(exclude={"error"})
-            )
+            if self.__dict__.get('_server', None):
+                await self._server.send_json(
+                    websocket,
+                    JsonRpc2Response(id=message.id, result=result).dict(exclude={"error"})
+                )
+            else:
+                await self._client.send_json(
+                    JsonRpc2Response(id=message.id, result=result).dict(exclude={"error"})
+                )
         elif isinstance(message, JsonRpcXRequest):
-            await websocket.send_json(
-                JsonRpcXResponse(id=message.id, result=result).dict(exclude={"error"})
-            )
+            if self.__dict__.get('_server', None):
+                await self._server.send_json(
+                    websocket,
+                    JsonRpcXResponse(id=message.id, result=result).dict(exclude={"error"})
+                )
+            else:
+                await self._client.send_json(
+                    JsonRpcXResponse(id=message.id, result=result).dict(exclude={"error"})
+                )
         else:
             raise TypeError("message is not correctly")
 
@@ -202,7 +214,6 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
 
     async def __send_request_client(self, proxy: ProxyObj):
         request = self.auto_standard(proxy)
-        # await proxy.__self._client.send_json()
         await self._client.send_json(request.dict())
         return await Assign.receiver(request.id)
 
@@ -227,7 +238,10 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             ).dict(exclude={"result"})
         else:
             raise ValueError("JsonRpcMode is not set correctly")
-        await websocket.send_json(response)
+        if self.__dict__.get('_server', None):
+            await self._server.send_json(websocket, response)
+        else:
+            await self._client.send_json(response)
 
     async def __handle_aiter(
         self, result, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]
