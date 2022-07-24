@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from ...typing import Param, Optional, Literal
+from ...typing import Param, Optional, Literal, Any
 from ..basestandard import JsonRpcError, ProxyObj
 
 
@@ -12,7 +12,7 @@ class JsonRpc2Request(BaseModel):
     jsonrpc: Literal["2.0"] = "2.0"
     id: str
     method: str
-    params: Optional[Param] = None
+    params: Optional[Any] = None
 
 
 class JsonRpc2Response(BaseModel):
@@ -22,7 +22,7 @@ class JsonRpc2Response(BaseModel):
 
     jsonrpc: Literal["2.0"] = "2.0"
     id: Optional[str] = None
-    result: Optional[Param] = None
+    result: Optional[Any] = None
     error: Optional[JsonRpcError] = None
 
 

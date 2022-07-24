@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from ...typing import Param, Optional, Union, List, Dict, Tuple, Literal
+from ...typing import Param, Optional, Union, List, Tuple, Literal, Any
 from ..basestandard import JsonRpcError, ProxyObj, analysis_proxy
 
 
@@ -18,7 +18,7 @@ class JsonRpcXResponse(BaseModel):
     """
     jsonrpc: Literal['X'] = 'X'
     id: Optional[str] = None
-    result: Optional[Param] = None
+    result: Optional[Any] = None
     error: Optional[JsonRpcError] = None
 
 def proxy_to_jsonrpcx(proxy: ProxyObj):
