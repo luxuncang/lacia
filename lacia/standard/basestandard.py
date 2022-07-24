@@ -113,11 +113,26 @@ class ProxyObj:
                 ):
                     raise StopAsyncIteration
                 return data
-        # elif hasattr(self.__self, "_server"):
-        #     frame = inspect.currentframe()
-        #     ws = self.__get_ws(frame)
-        #     return await self.__self.send_request_server(self, ws)    
-        raise AttributeError("client is not running")
+        if not self.__aiter_request:
+            request = self.__self.auto_standard(self)
+            self.__aiter_request = request
+        else:
+            request = self.__aiter_request
+        if TYPE_CHECKING:
+            assert isinstance(request, (JsonRpcXRequest, JsonRpc2Request))
+        try:
+            frame = inspect.currentframe()
+            ws = self.__self.get_ws(frame)
+            await self.__self._server.send_json(ws, request.dict())
+            data = await Assign.receiver(request.id)
+        except JsonRpcException as e:
+            raise e
+        if (
+            isinstance(data, JsonRpcCode)
+            and data == JsonRpcCode.StopAsyncIterationError
+        ):
+            raise StopAsyncIteration
+        return data
 
     def __await__(self):
         if hasattr(self.__self, "_client"):

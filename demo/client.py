@@ -17,7 +17,7 @@ async def main():
 
     res1 = await rpc.value
     res2 = await rpc.add(4, 4)
-    res3 = await rpc.number().add(10).sub(10).value # type: ignore
+    res3 = await rpc.Number().add(10).sub(10).value # type: ignore
     res4 = await rpc.repeat()
 
     logger.info(res1)

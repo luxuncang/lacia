@@ -1,7 +1,7 @@
 import asyncio
 from lacia import JsonRpc, AioServer, __version__
 
-class number:
+class Number:
 
     def __init__(self) -> None:
         self.value = 0
@@ -23,7 +23,7 @@ expose = {
     'add': lambda a, b: a + b,
     'sub': lambda a, b: a - b,
     'value': f'PyJsonRpc Server {__version__}',
-    'number': number,
+    'Number': Number,
     'async_generator': async_generator,
 }
 
