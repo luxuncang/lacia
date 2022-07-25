@@ -2,7 +2,7 @@
 
 # Lacia
 
-_A modern `Json-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls.._
+_A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls.._
 
 > 人间总有一两风，填我十万八千梦
 
@@ -39,6 +39,7 @@ pdm add lacia
 * [X] 支持完备的链式调用
 * [X] 自动 Json-Rpc 规范转换
 * [X] 双向流式传输
+* [X] 支持 BSON
 * [ ] IDE 支持 ([#1](https://github.com/luxuncang/lacia/issues/1))
 * [ ] 分布式Server
 
@@ -151,8 +152,7 @@ loop = asyncio.new_event_loop()
 rpc = JsonRpc('/test', namespace=expose, loop=loop)
 
 async def repeat():
-    ws = rpc._server.active_connections[0]
-    res = await rpc.send_request_server(rpc.value, ws[0])
+    res = await rpc.value
     return res
 
 rpc.add_namespace('repeat', repeat)
@@ -224,7 +224,6 @@ loop.run_until_complete(main())
 loop.run_forever()
 ```
 
-
 ### IDE 支持(实验性)
 
 **Server 端**
@@ -273,4 +272,4 @@ loop.run_forever()
 
 ![1655481388512](image/README/1655481388512.png)
 
-> IDE 现只支持函数和基础类型, Class 正在重构中 
+> IDE 现只支持函数和基础类型, Class 正在重构中
