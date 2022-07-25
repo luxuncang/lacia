@@ -27,6 +27,11 @@ class CallObj(BaseModel):
         return await self.method(*self.args, **self.kwargs)
 
 
+class LaciaGenerator:
+    def __init__(self, obj) -> None:
+        self.obj = obj
+
+
 def get_func_bind(func: Callable, *args, **kwargs) -> Dict[str, Any]:
     """
     Get the function binding.
@@ -70,7 +75,7 @@ async def run_obj(obj: Any, method: str, args: tuple = (), kwargs: dict = {}) ->
     raise AttributeError("Method not found")
 
 
-async def run_fm(fm: List[dict], namespace: dict) -> None:
+async def run_fm(fm: List[dict], namespace: dict):
     method = fm[0]
     if (
         method["method"] == "__getattr__"
@@ -82,6 +87,8 @@ async def run_fm(fm: List[dict], namespace: dict) -> None:
         raise AttributeError("Method not found")
     for i in fm[1:]:
         obj = await run_obj(obj, i["method"], i["args"], i["kwargs"])
+    if "i" in locals() and i["method"] == "__getattr__" and i["args"][0] == "__aiter__":  # type: ignore
+        return LaciaGenerator(obj)
     return obj
 
 

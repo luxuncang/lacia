@@ -27,7 +27,7 @@ from ..state import State
 from ..logs import logger
 from ..exception import WebSocketClosedError
 from ..schema import schema_gen
-from ..utils import run_fm, asyncio_loop_apply
+from ..utils import run_fm, asyncio_loop_apply, LaciaGenerator
 from ..typing import (
     Any,
     Dict,
@@ -158,7 +158,7 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             else:
                 raise TypeError("message is not correctly")
             result = await run_fm(fm, self._namespace)
-            if hasattr(result, "__aiter__") or hasattr(result, "__iter__"):
+            if isinstance(result, LaciaGenerator):
                 await self.__handle_aiter(result, websocket, message)
             else:
                 await self.__send_result(websocket, message, result)
@@ -244,22 +244,24 @@ class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
             await self._client.send_json(response)
 
     async def __handle_aiter(
-        self, result, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]
+        self, result: LaciaGenerator, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]
     ):  
-        if hasattr(result, "__aiter__"):
-            async for r in result:
+        if hasattr(result.obj, "__aiter__"):
+            async for r in result.obj:
                 await self.__send_result(websocket, message, r)
                 await Assign.receiver(message.id, False)
             await self.__send_error_response(
                 websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict()
             )
-        elif hasattr(result, "__iter__"):
-            for r in result:
+        elif hasattr(result.obj, "__iter__"):
+            for r in result.obj:
                 await self.__send_result(websocket, message, r)
                 await Assign.receiver(message.id, False)
             await self.__send_error_response(
                 websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict()
             )
+        else:
+            raise TypeError("result is not iterable")
 
     def auto_standard(self, proxy: ProxyObj):  # TODO: 重构
         try:
