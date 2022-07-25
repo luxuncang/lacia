@@ -1,6 +1,6 @@
 [project]
 name = "lacia"
-version = "0.0.3"
+version = "0.0.4"
 description = "A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
 authors = [
     {name = "luxuncang", email = "luxuncang@qq.com"},
