@@ -1,5 +1,5 @@
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 from .core import JsonRpc
 from .network import AioClient, AioServer
