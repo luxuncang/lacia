@@ -58,7 +58,7 @@ class Assign(Generic[T_Res, T_Req]):  # TODO 与其他Json-RPC实现进行交互
                 cls.future.pop(uid, None)
                 return JsonRpcCode.StopAsyncIterationError
             raise JsonRpcException(data.error.code, data.error.message, data.error.data)
-        elif "result" in data.dict(exclude_unset=True) and data.result != None:
+        elif "result" in data.dict(exclude_unset=True):
             return data.result
         raise TypeError("JsonRpc Response Obj Error")
 
@@ -136,14 +136,14 @@ class ProxyObj:
 
     def __await__(self):
         if hasattr(self.__self, "_client"):
-            if not self.__self._client.closed():
-                request = self.__self.auto_standard(self)
-                yield from self.__self._client.send_json(request.dict()).__await__()
-                try:
-                    data = yield from Assign.receiver(request.id).__await__()
-                except JsonRpcException as e:
-                    raise e
-                return data
+            # if not self.__self._client.closed():
+            request = self.__self.auto_standard(self)
+            yield from self.__self._client.send_json(request.dict()).__await__()
+            try:
+                data = yield from Assign.receiver(request.id).__await__()
+            except JsonRpcException as e:
+                raise e
+            return data
         frame = inspect.currentframe()
         ws = self.__self.get_ws(frame)
         data = yield from self.__self.send_request_server(self, ws).__await__()
