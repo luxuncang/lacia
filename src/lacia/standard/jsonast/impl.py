@@ -1,17 +1,14 @@
-from typing import NamedTuple, Tuple, Dict, Optional, Any, Union, TypeVar, TYPE_CHECKING
+from typing import NamedTuple, Tuple, Dict, Optional, Any, Union, TypeVar
 
 from lacia.standard.abcbase import BaseDataTrans
 
 T = TypeVar("T")
 
-if TYPE_CHECKING:
-    from lacia.standard.jsonast import JsonAst
-
 class BaseJsonAst(NamedTuple):
     obj: Union[str, "JsonAst", None]
     method: Optional[str]
-    args: Optional[Tuple["JsonAst" | Any, ...]]
-    kwargs: Optional[Dict[str, "JsonAst" | Any]]
+    args: Optional[Tuple[Any, ...]] # Optional[Tuple[Union[str, "JsonAst"], ...]]
+    kwargs: Optional[Dict[str, Any]] # Optional[Dict[str, "JsonAst" | Any]]
     
     def todict(self):
         return {
