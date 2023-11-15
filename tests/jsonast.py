@@ -1,0 +1,121 @@
+import asyncio
+
+from lacia.logger import logger
+from lacia.standard.jsonast.runtime import RunTime, Standard, Namespace
+from lacia.core.proxy import ProxyObj
+
+async def test_aping(x):
+    return f"pong: {x}"
+
+async def test_async_iter(n):
+    for i in range(n):
+        await asyncio.sleep(1)
+        yield i
+
+class TestJson:
+
+    def __init__(self, a, b=1) -> None:
+        self.a = a
+        self.b = b
+
+    def sum(self):
+        return self.a + self.b
+    
+    def test_return(self, text):
+        return f"return: {text}"
+    
+
+namespace = {
+    "test_attribute": "Hello World!",
+    "test_ping": lambda x: f"pong: {x}",
+    "test_aping": test_aping,
+    "test_class_init": TestJson,
+    "test_async_iter": test_async_iter
+}
+#  嵌套
+
+class Test:
+
+    async def test_attribute(self):
+        runtime = Standard.runtime(namespace)
+        obj = ProxyObj()
+
+        astboj = obj.test_attribute._obj
+
+        r = await runtime.run(astboj)
+
+        assert r == "Hello World!"
+
+    async def test_ping(self):
+        runtime = Standard.runtime(namespace)
+        obj = ProxyObj()
+
+        astboj = obj.test_ping("hello")._obj
+
+        r = await runtime.run(astboj)
+
+        assert r == "pong: hello"
+
+    async def test_aping(self):
+        runtime = Standard.runtime(namespace)
+        obj = ProxyObj()
+
+        astboj = obj.test_aping("hello")._obj
+
+        r = await runtime.run(astboj)
+
+        assert r == "pong: hello"
+
+    async def test_class_init(self):
+        runtime = Standard.runtime(namespace)
+        obj = ProxyObj()
+
+        astboj = obj.test_class_init(1, b=3).sum()._obj
+
+        r = await runtime.run(astboj)
+
+        assert r == 4
+
+    async def test_class_attribute(self):
+        runtime = Standard.runtime(namespace)
+        obj = ProxyObj()
+
+        astobj = obj.test_class_init(1, b=3).a._obj
+
+        r = await runtime.run(astobj)
+
+        assert r == 1
+
+    async def test_object_nest(self):
+        runtime = Standard.runtime(namespace)
+        a_obj = ProxyObj().test_ping("ping")
+        b_obj = ProxyObj().test_class_init(1, b=3).test_return(a_obj)
+        c_obj = ProxyObj()
+
+        astobj = c_obj.test_ping(b_obj)._obj
+
+        r = await runtime.run(astobj)
+        
+        assert r == "pong: return: pong: ping"
+
+    async def test_getattr(self):
+        runtime = Standard.runtime(namespace)
+        obj = getattr(ProxyObj(), "test_ping")("ping")
+
+        astobj = obj._obj
+
+        r = await runtime.run(astobj)
+
+        assert r == "pong: ping"
+
+    async def main(self):
+        for func in dir(self):
+            if func.startswith("test_"):
+                await getattr(self, func)()
+                logger.success(f"{func} passed")
+
+async def main():
+    await Test().main()
+
+asyncio.run(main())
+        

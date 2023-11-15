@@ -3,9 +3,9 @@ import asyncio
 
 from functools import wraps
 
-from .logs import logger
-from .state import State
-from .typing import (
+from lacia.logger import logger
+
+from typing import (
     Callable,
     TypeVar,
     Dict,
@@ -194,15 +194,13 @@ class Hook(metaclass = MetaHook):
 
 async def receive_json_hook(obj, objer, name, *args, **kwargs):
     res = await objer(*args, **kwargs)
-    if State.debug:
-        logger.info(f"{obj.__self__.__class__.__name__} received: {res}")
+    logger.info(f"{obj.__self__.__class__.__name__} received: {res}")
     return res
 
 async def send_json_hook(obj, objer, name, *args, **kwargs):
     res = await objer(*args, **kwargs)
-    if State.debug:
-        logger.info(f"{obj.__self__.__class__.__name__} send: {args[-1] if args else None}")
+    logger.info(f"{obj.__self__.__class__.__name__} send: {args[-1] if args else None}")
     return res
 
-Hook.on('receive_json', receive_json_hook)
-Hook.on('send_json', send_json_hook)
+# Hook.on('receive_json', receive_json_hook)
+Hook.on('send_json', send_json_hook) 

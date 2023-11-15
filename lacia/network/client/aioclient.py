@@ -1,34 +1,46 @@
-import aiohttp
+import asyncio 
+from typing import Optional
 
 import orjson
 import bson
+import aiohttp
 
-from ..abcbase import BaseClient
-from ...logs import logger
-from ...exception import WebSocketClosedError
-from ...typing import Message, Optional, AsyncGenerator
+from lacia.network.abcbase import BaseClient
+from lacia.logger import logger
+from lacia.types import Message
+from lacia.exception import JsonRpcWsConnectException
 
 
-class AioClient(BaseClient):
-    def __init__(self) -> None:
-        self.session = aiohttp.ClientSession()
 
-    async def start(self, path: str) -> "AioClient":
-        self.ws = await self.session.ws_connect(f"http://{path}")
-        logger.success(f"📡 {self.__class__.__name__} success connected: {path}.")
+class  AioClient(BaseClient):
+    def __init__(
+        self,
+        path: str = "",
+        host: str = "localhost",
+        port: int = 8080,
+        loop: Optional[asyncio.AbstractEventLoop] = None
+    ) -> None:
+        self.path = path
+        self.host = host
+        self.port = port
+        self.loop = loop
+
+    async def start(self) -> "AioClient":
+        self.session = aiohttp.ClientSession(loop=self.loop or asyncio.get_event_loop())
+        self.ws = await self.session.ws_connect(f"http://{self.host}:{self.port}{self.path}")
+        logger.success(f"📡 {self.__class__.__name__} success connected: http://{self.host}:{self.port}{self.path}.")
         return self
 
     async def receive(self):
+
         try:
             async for data in self.ws:
                 if data.type == aiohttp.WSMsgType.close:
-                    raise WebSocketClosedError(data.data)
+                    raise JsonRpcWsConnectException(data.data)
                 else:
                     return data
-        finally:
-            if not 'data' in locals():
-                await self.close()
-                raise WebSocketClosedError(f"{self.__class__.__name__} closed.")
+        except Exception as e:
+            raise JsonRpcWsConnectException(f"{self.__class__.__name__} closed.({e})")
 
     async def receive_json(self):
         data = await self.receive()
@@ -44,17 +56,35 @@ class AioClient(BaseClient):
         if data and data.type == aiohttp.WSMsgType.BINARY:
             return data.data
 
-    async def iter_json(self) -> AsyncGenerator[Message, None]:
-        while True:
-            data = await self.receive_json()
-            if data:
-                yield data
+    async def iter_json(self) :
+        try:
+            while True:
+                data = await self.receive_json()
+                if data:
+                    yield data
+        except JsonRpcWsConnectException as e:
+            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            await self.close()
+        except Exception as e:
+            logger.error(e)
+            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            await self.close()
+        finally:
+            return
 
     async def iter_bytes(self):
-        while True:
-            data = await self.receive_bytes()
-            if data:
-                yield data
+        try:
+            while True:
+                data = await self.receive_bytes()
+                if data:
+                    yield data
+        except JsonRpcWsConnectException as e:
+            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            await self.close()
+        except Exception as e:
+            logger.error(e)
+            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            await self.close()
 
     async def send(self, message) -> None:
         return await self.send(message)
@@ -67,9 +97,7 @@ class AioClient(BaseClient):
             return await self.ws.send_bytes(bson.dumps(message))
         return await self.ws.send_json(message)
 
-    async def close(
-        self, code: Optional[int] = None, reason: Optional[str] = None
-    ) -> None:
+    async def close(self) -> None:
         await self.ws.close()
 
     def closed(self) -> bool:

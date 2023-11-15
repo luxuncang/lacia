@@ -1,33 +1,27 @@
+
 [project]
 name = "lacia"
-version = "0.0.5"
-description = "A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
+version = "0.2.0"
+description = "A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
 authors = [
     {name = "luxuncang", email = "luxuncang@qq.com"},
 ]
 dependencies = [
-    "nest-asyncio>=1.5.5",
-    "typing-extensions>=4.2.0",
     "richuru>=0.1.1",
-    "pydantic>=1.9.1",
-    "aiohttp>=3.8.1",
-    "orjson>=3.7.7",
+    "nest-asyncio>=1.5.8",
+    "aiohttp>=3.8.6",
+    "orjson>=3.9.10",
     "bson>=0.5.10",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
-[project.optional-dependencies]
-
-[tool.pdm]
-[tool.pdm.dev-dependencies]
-dev = [
-    "pre-commit>=2.19.0",
-    "black>=22.3.0",
-    "isort>=5.10.1",
-    "flake8>=4.0.1",
-]
 
 [build-system]
-requires = ["pdm-pep517>=0.12.0"]
-build-backend = "pdm.pep517.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.1.5",
+]

@@ -2,7 +2,7 @@
 
 # Lacia
 
-_A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls.._
+_A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls._
 
 > 人间总有一两风，填我十万八千梦
 
@@ -34,13 +34,17 @@ pdm add lacia
 * [X] 多种网络协议支持
   * [X] `HTTP`
   * [X] `WebSocket`
-* [X] 兼容 Json-Rpc 2.0 规范
-* [X] 兼容 Json-Rpc X 规范
+  * [X] `自定义`
+* [X] 多种Runtime支持
+    * [X] 兼容 Json-Rpc Ast 规范
+    * [ ] 兼容 Json-Rpc 2.0 规范
+    * [ ] 兼容 Json-Rpc X 规范
 * [X] 支持完备的链式调用
-* [X] 自动 Json-Rpc 规范转换
+* [X] 支持嵌套调用
+* [X] 支持双向调用
 * [X] 双向流式传输
 * [X] 支持 BSON
-* [ ] IDE 支持 ([#1](https://github.com/luxuncang/lacia/issues/1))
+* [ ] IDE 支持
 * [ ] 分布式Server
 
 ## 使用
@@ -50,42 +54,45 @@ pdm add lacia
 **Server 端**
 
 ```python
-import asyncio
-from lacia import JsonRpc, AioServer
 
-expose = {
-    'add': lambda a, b: a + b,
-    'sub': lambda a, b: a - b,
-    'value': 'jsonrpc Server 0.0.1'
+import asyncio
+from lacia.core.core import JsonRpc
+from lacia.network.server.aioserver import AioServer
+namespace = {
+    "ping": lambda x: f"pong {x}",
 }
 
-loop = asyncio.new_event_loop()
+rpc = JsonRpc(name = "server_test", namespace=namespace)
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+async def main():
+    await rpc.run_server(AioServer(path="/func"))
 
-rpc.run_server(AioServer())
+asyncio.run(main())
 ```
 
 **Client 端**
 
 ```python
 import asyncio
-from lacia import JsonRpc, AioClient, logger
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-loop = asyncio.new_event_loop()
-
-rpc = JsonRpc('/test', loop=loop)
+rpc = JsonRpc(
+    name="client_test",
+)
 
 async def main():
-    await rpc.run_client(AioClient())
-    res1 = await rpc.value
-    res2 = await rpc.add(4, 4)
 
-    logger.info(res1)
-    logger.info(res2)
+    client = AioClient(path="/func")
+    await rpc.run_client(client)
 
+    ping = ProxyObj(rpc).ping
+
+    assert await ping("hello") == "pong hello"
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_forever()
 ```
 
 ### 链式调用
@@ -94,47 +101,58 @@ loop.run_forever()
 
 ```python
 import asyncio
-from lacia import JsonRpc, AioServer
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-class number:
+rpc = JsonRpc(
+    name="client_test",
+)
 
-    def __init__(self) -> None:
-        self.value = 0
-  
-    def add(self, i: int):
-        self.value += i
-        return self
+class Test:
 
-    def sub(self, i: int):
-        self.value -= i
-        return self
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    
+    def output(self, name):
+        return f"hello: {name}, a: {self.a}, b: {self.b}"
 
-expose = {'number': number}
+namespace = {
+    "Test": Test
+}
 
-loop = asyncio.new_event_loop()
+rpc = JsonRpc(name = "server_test", namespace=namespace)
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+async def main():
+    await rpc.run_server(AioServer(path="/chain"))
 
-rpc.run_server(AioServer())
+asyncio.run(main())
 ```
 
 **Client 端**
 
 ```python
 import asyncio
-from lacia import JsonRpc, AioClient, logger
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-loop = asyncio.new_event_loop()
-
-rpc = JsonRpc('/test', loop=loop)
+rpc = JsonRpc(
+    name="client_test",
+)
 
 async def main():
-    await rpc.run_client(AioClient())
-    res3 = await rpc.number().add(10).sub(10).value
-    logger.info(res3)
 
+    client = AioClient(path="/func")
+    await rpc.run_client(client)
+
+    ping = ProxyObj(rpc).ping
+
+    assert await ping("hello") == "pong hello"
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_forever()
 ```
 
 ### 反向调用
@@ -142,44 +160,62 @@ loop.run_forever()
 **Server 端**
 
 ```python
+
 import asyncio
-from lacia import JsonRpc, AioServer
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.server.aioserver import AioServer
 
-expose = {'value': 'jsonrpc Server 0.0.1'}
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
 
-loop = asyncio.new_event_loop()
+rpc = JsonRpc(name = "server_test", namespace=namespace)
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
-
-async def repeat():
-    res = await rpc.value
+async def reverse_call(name: str):
+    res = await ProxyObj(rpc, name=name).ping(name)
     return res
 
-rpc.add_namespace('repeat', repeat)
+rpc.add_namespace({
+    "reverse_call": reverse_call,
+})
 
-rpc.run_server(AioServer())
+async def main():
+    await rpc.run_server(AioServer(path="/ws"))
+
+asyncio.run(main())
 
 ```
 
 **Client 端**
 
 ```python
+from pprint import pprint
+
 import asyncio
-from lacia import JsonRpc, AioClient, logger
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-expose = {'value': 'jsonrpc Client 0.0.1'}
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
 
-loop = asyncio.new_event_loop()
-
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+rpc = JsonRpc(
+    name="client_test",
+    namespace=namespace
+)
 
 async def main():
-    await rpc.run_client(AioClient())
-    res4 = await rpc.repeat()
-    logger.info(res4)
 
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
+
+    proxy1 = ProxyObj(rpc).reverse_call
+    assert await proxy1("hello") == "pong hello"
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_forever()
 ```
 
 ### 流式调用
@@ -187,89 +223,127 @@ loop.run_forever()
 **Server 端**
 
 ```python
-import asyncio
-from lacia import JsonRpc, AioServer
 
-async def async_generator(i = 10):
-    for i in range(i):
-        await asyncio.sleep(0.5)
+import asyncio
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.server.aioserver import AioServer
+
+async def test_async_iter(n: int):
+    for i in range(n):
+        await asyncio.sleep(1)
         yield i
 
-expose = {'async_generator': async_generator}
+namespace = {
+    "test_async_iter": test_async_iter,
+}
 
-loop = asyncio.new_event_loop()
+rpc = JsonRpc(name = "server_test", namespace=namespace)
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+async def main():
+    await rpc.run_server(AioServer(path="/ws"))
 
-rpc.run_server(AioServer())
+asyncio.run(main())
 ```
 
 **Client 端**
 
 ```python
+from pprint import pprint
+
 import asyncio
-from lacia import JsonRpc, AioClient, logger
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-loop = asyncio.new_event_loop()
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
 
-rpc = JsonRpc('/test', loop=loop)
+rpc = JsonRpc(
+    name="client_test",
+    namespace=namespace
+)
 
 async def main():
-    await rpc.run_client(AioClient())
 
-    async for i in rpc.async_generator(5): # type: ignore
-        logger.info(i)
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
 
+    proxy3 = ProxyObj(rpc).test_async_iter
+
+    async for i in proxy3(3):
+        print(i)
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_forever()
 ```
 
-### IDE 支持(实验性)
+### 嵌套调用
 
 **Server 端**
 
 ```python
+
 import asyncio
-from lacia import JsonRpc, AioServer
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.server.aioserver import AioServer
 
-async def async_generator(i: int = 10):
-    for i in range(i):
-        await asyncio.sleep(0.5)
-        yield i
+class Test:
 
-expose = {'async_generator': async_generator}
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    
+    def output(self, name):
+        return f"hello: {name}"
 
-loop = asyncio.new_event_loop()
+def class_sum(obj: Test):
+    return obj.a + obj.b
 
-rpc = JsonRpc('/test', namespace=expose, loop=loop)
+namespace = {
+    "class_sum": class_sum,
+    "Test": Test,
+}
 
-rpc.rpc.generate_pyi('CustomSchema') # Generate Pyi file in ./laciaschema/CustomSchema.pyi
+rpc = JsonRpc(name = "server_test", namespace=namespace)
 
-rpc.run_server(AioServer())
+async def main():
+    await rpc.run_server(AioServer(path="/ws"))
+
+asyncio.run(main())
 ```
 
 **Client 端**
 
 ```python
+from pprint import pprint
+
 import asyncio
-from lacia import JsonRpc, AioClient, logger
-from laciaschema.CustomSchema import CustomSchema
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
 
-loop = asyncio.new_event_loop()
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
 
-irpc = JsonRpc('/test', loop=loop)
-rpc = irpc.with_schema(CustomSchema) # Use CustomSchema as schema and 
+rpc = JsonRpc(
+    name="client_test",
+    namespace=namespace
+)
 
 async def main():
-    await irpc.run_client(AioClient())
 
-    async for i in rpc.async_generator(5): # type: ignore
-        logger.info(i)
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
 
+    proxy1 = ProxyObj(rpc).Test(1, b=2)
+    proxy2 = ProxyObj(rpc).class_sum(proxy1)
+
+    assert await proxy2 == 3
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_forever()
 ```
-
-![1655481388512](image/README/1655481388512.png)
-
-> IDE 现只支持函数和基础类型, Class 正在重构中

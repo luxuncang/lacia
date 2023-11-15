@@ -1,318 +1,231 @@
 import asyncio
-import uuid
-from json.decoder import JSONDecodeError
-from pathlib import Path
+import json
+from uuid import uuid4
+from typing import Dict, Any, Optional, TypeVar, Generic, overload
 
-from pydantic.error_wrappers import ValidationError
+from nest_asyncio import apply as nest_apply
 
-from .abcbase import BaseJsonRpc, JsonRpcMode, ListenEvent
-from ..standard import (
-    Proxy,
-    ProxyObj,
-    Assign,
-    proxy_to_jsonrpc2,
-    proxy_to_jsonrpcx,
-    analysis_jsonrpc2_message,
-    analysis_jsonrpcX_message,
-    Standard,
-    JsonRpc2Request,
-    JsonRpc2Response,
-    JsonRpcXRequest,
-    JsonRpcXResponse,
-    JsonRpcError,
-    JsonRpcCode,
-)
+from lacia.core.abcbase import BaseJsonRpc
+from lacia.core.proxy import BaseProxy, ResultProxy, ProxyObj
+from lacia.network.abcbase import BaseServer, BaseClient
+from lacia.standard.abcbase import BaseStandard, BaseDataTrans, Namespace
+from lacia.standard.execute import Standard
+from lacia.logger import logger
+from lacia.types import RpcMessage
+from lacia.exception import JsonRpcInitException
 
-from ..state import State
-from ..logs import logger
-from ..exception import WebSocketClosedError
-from ..schema import schema_gen
-from ..utils import run_fm, asyncio_loop_apply, LaciaGenerator
-from ..typing import (
-    Any,
-    Dict,
-    Optional,
-    Union,
-    Param,
-    TYPE_CHECKING,
-    TypeVar,
-    cast,
-    Type,
-    Callable,
-)
+T = TypeVar("T")
 
-if TYPE_CHECKING:
-    from ..network.client.aioclient import AioClient, BaseClient
-    from ..network.server.aioserver import AioServer, BaseServer
-    from ..core.core import JsonRpc
-
-    Server = Union[AioServer, BaseServer]
-    Client = Union[AioClient, BaseClient]
-
-Schema = TypeVar("Schema")
-
-
-class JsonRpc(BaseJsonRpc, Proxy):  # TODO： Server 和 Client 分离
+class JsonRpc(BaseJsonRpc, Generic[T]):
+    
     def __init__(
         self,
-        path: str = "",
-        host: str = "localhost",
-        port: int = 8080,
+        name: str,
         execer: bool = True,
-        jsonrpc_mode: JsonRpcMode = JsonRpcMode.Auto,
-        namespace: Dict[str, Any] = {},
+        namespace: Optional[Dict[str, Any]] = None,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         debug: bool = False,
-    ):
-        self._PATH = path
-        self._HOST = host
-        self._PORT = port
-        self._Execer = execer
-        self._JsonRpcMode = jsonrpc_mode
-        self._namespace = namespace
-        self._loop = loop or asyncio.get_event_loop()
-        asyncio_loop_apply(self._loop)  # TODO: 不兼容审查
-        State.debug = debug
 
-    def run_server(self, server: "Server"):
-        self._server = server
-        self._server.set_on_ws(self.__listening_client, self)
-        server.start(self._PATH, self._HOST, self._PORT, self._loop)
+    ) -> None:
+        self._name = name
+        self._execer = execer
+        self._namespace = Namespace(
+            globals=namespace if namespace else {},
+        )
+        self._loop = loop
+        self._debug = debug
+        self._uuid = str(uuid4())
 
-    async def run_client(self, client: "Client"):
+        self._wait_remote: Dict[str, asyncio.Event] = {}
+        self._wait_result: Dict[str, ResultProxy] = {}
+
+        self._standard = Standard()
+
+    def add_namespace(self, namespace: Dict[str, Any]) -> None:
+        self._namespace.globals.update(namespace)
+
+    async def run_client(self, client: BaseClient) -> None:
+        self._standard.init_standard()
         self._client = client
-        await client.start(path=f"{self._HOST}:{self._PORT}{self._PATH}")
-        self._loop.create_task(self.__listen_server())
+        self._loop = self._loop or asyncio.get_event_loop()
+        await client.start()
+        if self._loop:
+            self._loop.create_task(self._listening_server(self._client.ws))
+            logger.info("run client")
+    
+    async def run_server(self, server: BaseServer) -> None:
+        self._loop = self._loop or asyncio.get_event_loop()
+        nest_apply(self._loop)
+        self._standard.init_standard()
+        self._server = server
+        self._server.on("connect", self._listening_client)
+        self._server.on("disconnect", self.on_server_close)
+        logger.info("run server")
+        await server.start()
+    
+    async def _listening_client(self, websocket: T):
+        logger.info("listening client")
+        
+        if self._namespace.locals.get(websocket) is None:
+            self._namespace.locals[websocket] = {}
+        if self._server:
+            self._namespace.locals[websocket]["rpc_auto_register"] = lambda name: self._server.active_connections.set_name_ws(name, websocket) # type: ignore
 
-    async def __listening_client(self, websocket) -> None:
-        logger.info("🛰️ listening client")
-        try:
+        if self._server is not None:
             async for message in self._server.iter_json(websocket):
-                try:
-                    message_type = self.auto_request_response(message)
-                    if message_type == "request":
-                        msg = Standard.json_to_request(message)
-                        if msg.id in Assign.future:
-                            Assign.post_data(msg, False)
-                        else:
-                            self._loop.create_task(self.__exce_rpc(msg, websocket))
-                    elif message_type == "response":
-                        msg = Standard.json_to_response(message)
-                        Assign.post_data(msg)  # type: ignore
-                except ValidationError as e:
-                    await self.__send_error_response(
-                        websocket, JsonRpcCode.InvalidRequest, str(e), message
-                    )
-        except JSONDecodeError as e:
-            logger.exception(e)
-            await self.__send_error_response(websocket, JsonRpcCode.ParseError, str(e))
-        except WebSocketClosedError as e:
-            logger.debug(str(e))
-        except Exception as e:
-            logger.exception(e)
-            f = self._Events.get(ListenEvent.Exception, None)
-            if f:
-                self._loop.create_task(f(e))
+                
+                logger.info(f"receive: {message}")
+                msg = RpcMessage(message)
+                if msg.is_request and self._execer and self._loop:
+                    self._loop.create_task(self._s_execute(websocket, msg))
+                elif msg.is_response:
+                    rmsg = ResultProxy(msg, core=self) # type: ignore
+                    self._wait_result[msg.id] = rmsg
+                    self._wait_remote[msg.id].set()
+        else:
+            raise JsonRpcInitException("server is None")
 
-    async def __listen_server(self) -> None:
-        logger.info("🛰️ listening server")
-        try:
+    async def _listening_server(self, websocket: T):
+        logger.info("listening server")
+
+        if self._client is not None:
+            
+            if self._loop:
+                self._loop.create_task(self.run(ProxyObj().rpc_auto_register(self._name)))
+
             async for message in self._client.iter_json():
-                try:
-                    message_type = self.auto_request_response(message)
-                    if message_type == "request":
-                        msg = Standard.json_to_request(message)
-                        if msg.id in Assign.future:
-                            Assign.post_data(msg, False)
-                        else:
-                            self._loop.create_task(self.__exce_rpc(msg, self._client))
-                    elif message_type == "response":
-                        msg = Standard.json_to_response(message)
-                        Assign.post_data(msg)  # type: ignore
-                except ValidationError as e:
-                    await self.__send_error_response(
-                        self._client, JsonRpcCode.InvalidRequest, str(e), message
-                    )
-        except JSONDecodeError as e:
-            logger.exception(e)
-            await self.__send_error_response(self.ws, JsonRpcCode.ParseError, str(e))
-        except WebSocketClosedError as e:
-            logger.debug(str(e))
-        except Exception as e:
-            logger.exception(e)
-            f = self._Events.get(ListenEvent.Exception, None)
-            if f:
-                self._loop.create_task(f(e))
+                logger.info(f"receive: {message}")
+                msg = RpcMessage(message)
 
-    async def __exce_rpc(
-        self, message: Union[JsonRpc2Request, JsonRpcXRequest], websocket
-    ) -> Any:
-        logger.info(f"⚙️ try exce_rpc: {message}")
+                if msg.is_request and self._execer and self._loop:
+                    self._loop.create_task(self._c_execute(websocket, msg))
+                elif msg.is_response:
+                    rmsg = ResultProxy(msg, core=self) # type: ignore
+                    self._wait_result[msg.id] = rmsg
+                    self._wait_remote[msg.id].set()
+            return
+        else:
+            raise JsonRpcInitException("client is None")
+    
+    async def _s_execute(self, websocket: T, message: RpcMessage): 
+
+        result, error = await self._standard.rpc_request(message.data, self._namespace[websocket])
+
+        if error is None:
+            if websocket not in self._namespace.locals:
+                self._namespace.locals[websocket] = {}
+            self._namespace.locals[websocket][message.id] = result # TODO 内存泄漏
+            msg = {
+                "jsonrpc": message.jsonrpc,
+                "id": message.id,
+                "result": self._pretreatment(result)
+            }
+        else:
+            msg = {
+                "jsonrpc": message.jsonrpc,
+                "id": message.id,
+                "error": error
+            }
+        if self._server is not None:
+            logger.info(f"send: {msg}")
+            
+            await self._server.send_json(websocket, msg)
+    
+    async def _c_execute(self, websocket: T, message: RpcMessage):
+
+        result, error = await self._standard.rpc_request(message.data, self._namespace[websocket])
+
+        if error is None:
+            if websocket not in self._namespace.locals:
+                self._namespace.locals[websocket] = {}
+            self._namespace.locals[websocket][message.id] = result # TODO 内存泄漏
+            msg = {
+                "jsonrpc": message.jsonrpc,
+                "id": message.id,
+                "result": result
+            }
+        else:
+            msg = {
+                "jsonrpc": message.jsonrpc,
+                "id": message.id,
+                "error": error
+            }
+
+        if self._client is not None:
+            logger.info(f"send: {msg}")
+            logger.info(self._namespace)
+            await self._client.send_json(msg) 
+
+    def on_client_close(self, websocket: T):
+        del self._namespace.locals[websocket]
+    
+    def on_server_close(self, websocket: T):
+        del self._namespace.locals[websocket]
+
+    async def run(self, proxy: BaseProxy[BaseDataTrans]):
+        uuid_str = str(uuid4())
+        if proxy._obj is None:
+            raise JsonRpcInitException("proxy._obj is None")
+        data = proxy._obj.dumps()
+        event = asyncio.Event()
+
+        self._wait_remote[uuid_str] = event
+
+        msg = {
+            "jsonrpc": proxy._jsonrpc,
+            "id": uuid_str,
+            "method": data,
+        }
+
+        if self._client is not None:
+            logger.info(f"send: {msg}")
+            await self._client.send_json(msg)
+        else:
+            raise JsonRpcInitException("server and client are None")
+
+        await event.wait()
+
+        return self._wait_result.pop(uuid_str)
+ 
+    async def reverse_run(self, name: str, proxy: BaseProxy[BaseDataTrans]):
+        uuid_str = str(uuid4())
+        if proxy._obj is None:
+            raise JsonRpcInitException("proxy._obj is None")
+        data = proxy._obj.dumps()
+        event = asyncio.Event()
+
+        self._wait_remote[uuid_str] = event
+
+        msg = {
+            "jsonrpc": proxy._jsonrpc,
+            "id": uuid_str,
+            "method": data,
+        }
+
+        if self._server is not None:
+            logger.info(f"send: {msg}")
+            await self._server.send_json(self._server.active_connections.get_ws(name), msg)
+        else:
+            raise JsonRpcInitException("server and client are None")
+
+        await event.wait()
+
+        return self._wait_result.pop(uuid_str)
+
+    def _pretreatment(self, data: Any) -> Any:
         try:
-            if not self.execer:
-                raise AttributeError("execer is not set correctly")
-            if isinstance(message, JsonRpc2Request):
-                fm = list(analysis_jsonrpc2_message(message))
-            elif isinstance(message, JsonRpcXRequest):
-                fm = list(analysis_jsonrpcX_message(message))
-            else:
-                raise TypeError("message is not correctly")
-            result = await run_fm(fm, self._namespace)
-            if isinstance(result, LaciaGenerator):
-                await self.__handle_aiter(result, websocket, message)
-            else:
-                await self.__send_result(websocket, message, result)
-        except AttributeError as e:
-            logger.exception(e)
-            await self.__send_error_response(
-                websocket, JsonRpcCode.MethodNotFound, str(e), message.dict()
-            )
-        except TypeError as e:
-            logger.exception(e)
-            await self.__send_error_response(
-                websocket, JsonRpcCode.ParseError, str(e), message.dict()
-            )
-        except Exception as e:
-            logger.exception(e)
-            await self.__send_error_response(
-                websocket, JsonRpcCode.InternalError, str(e), message.dict()
-            )
-
-    async def __send_result(
-        self, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest], result: Param
-    ) -> None:
-        if isinstance(message, JsonRpc2Request):
-            if self.__dict__.get('_server', None):
-                await self._server.send_json(
-                    websocket,
-                    JsonRpc2Response(id=message.id, result=result).dict(exclude={"error"})
-                )
-            else:
-                await self._client.send_json(
-                    JsonRpc2Response(id=message.id, result=result).dict(exclude={"error"})
-                )
-        elif isinstance(message, JsonRpcXRequest):
-            if self.__dict__.get('_server', None):
-                await self._server.send_json(
-                    websocket,
-                    JsonRpcXResponse(id=message.id, result=result).dict(exclude={"error"})
-                )
-            else:
-                await self._client.send_json(
-                    JsonRpcXResponse(id=message.id, result=result).dict(exclude={"error"})
-                )
-        else:
-            raise TypeError("message is not correctly")
-
-    async def __send_request(self, proxy: ProxyObj):
-        if hasattr(self, "_client"):
-            if not self._client.closed():
-                request = self.auto_standard(proxy)
-                await self._client.send_json(request.dict())
-                return await Assign.receiver(request.id)
-        raise AttributeError("client is not running")
-
-    async def __send_request_client(self, proxy: ProxyObj):
-        request = self.auto_standard(proxy)
-        await self._client.send_json(request.dict())
-        return await Assign.receiver(request.id)
-
-    async def send_request_server(self, proxy: ProxyObj, websocket):
-        request = self.auto_standard(proxy)
-        await self._server.send_json(websocket, request.dict())
-        return await Assign.receiver(request.id)
-
-    async def __send_error_response(
-        self, websocket, error: JsonRpcCode, error_data: str, message: dict = {}
-    ) -> None:
-        logger.error(f"🚨 error: {error} {error._name_} {message}")
-        if self._JsonRpcMode in (JsonRpcMode.Auto, JsonRpcMode.JsonRpc2):
-            response = JsonRpc2Response(
-                id=message.get("id", None),
-                error=JsonRpcError(code=error, message=error._name_, data=error_data),
-            ).dict(exclude={"result"})
-        elif self._JsonRpcMode in (JsonRpcMode.Auto, JsonRpcMode.JsonRpcX):
-            response = JsonRpcXResponse(
-                id=message.get("id", None),
-                error=JsonRpcError(code=error, message=error._name_, data=error_data),
-            ).dict(exclude={"result"})
-        else:
-            raise ValueError("JsonRpcMode is not set correctly")
-        if self.__dict__.get('_server', None):
-            await self._server.send_json(websocket, response)
-        else:
-            await self._client.send_json(response)
-
-    async def __handle_aiter(
-        self, result: LaciaGenerator, websocket, message: Union[JsonRpc2Request, JsonRpcXRequest]
-    ):  
-        if hasattr(result.obj, "__aiter__"):
-            async for r in result.obj:
-                await self.__send_result(websocket, message, r)
-                await Assign.receiver(message.id, False)
-            await self.__send_error_response(
-                websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict()
-            )
-        elif hasattr(result.obj, "__iter__"):
-            for r in result.obj:
-                await self.__send_result(websocket, message, r)
-                await Assign.receiver(message.id, False)
-            await self.__send_error_response(
-                websocket, JsonRpcCode.StopAsyncIterationError, "", message.dict()
-            )
-        else:
-            raise TypeError("result is not iterable")
-
-    def auto_standard(self, proxy: ProxyObj):  # TODO: 重构
-        try:
-            method, params = proxy_to_jsonrpc2(proxy)
+            json.dumps(data)
+            return data
         except TypeError:
-            method = proxy_to_jsonrpcx(proxy)
-        uid = str(uuid.uuid1())
-        loc = locals()
-        if self._JsonRpcMode == JsonRpcMode.Auto:
-            return (
-                JsonRpc2Request(id=uid, method=method, params=params)  # type: ignore
-                if "params" in loc
-                else JsonRpcXRequest(id=uid, method=method)  # type: ignore
-            )
-        elif self._JsonRpcMode == JsonRpcMode.JsonRpc2:
-            if "params" in loc:
-                return JsonRpc2Request(id=uid, method=method, params=params)  # type: ignore
-        elif self._JsonRpcMode == JsonRpcMode.JsonRpcX:
-            if "params" in loc:
-                return JsonRpc2Request(id=uid, method=method, params=params)  # type: ignore
-            else:
-                return JsonRpcXRequest(id=uid, method=method)  # type: ignore
-        raise ValueError("JsonRpcMode is not set correctly")
+            return str(data)
 
-    def auto_request_response(self, message: dict):
-        if "method" in message:
-            return "request"
-        if "result" in message or "error" in message:
-            return "response"
-        raise JSONDecodeError("message is not correctly", "", 0)
+    def is_server(self) -> bool:
+        if self._server is None and self._client is None:
+            raise JsonRpcInitException("server and client are None")
+        elif self._client is None and self._server is not None:
+            return True
+        return False
 
-    async def __aenter__(self) -> "JsonRpc":
-        ...
-
-    async def __aexit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        ...
-
-    def add_namespace(self, name: str, v: Any):
-        self._namespace[name] = v
-
-    def with_schema(self, schema: Type[Schema]) -> Schema:
-        return cast(schema, self)
-
-    def generate_pyi(self, name: str, path: Optional[str] = None):
-        if path == None:
-            p = Path.cwd() / "laciaschema"
-        else:
-            p = Path(path)
-        p.mkdir(parents=True, exist_ok=True)
-        with (p / f"{name}.pyi").open("w") as f:
-            f.write(schema_gen(name, self._namespace))
-        with (p / f"{name}.py").open("w") as f:
-            f.write(f"class {name}: ...\n")
-        logger.success(f"{name}.pyi and {name}.py generated in {p}")
+    @property
+    def jsonast(self):
+        return ProxyObj(self) # type: ignore

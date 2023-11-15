@@ -1,42 +1,25 @@
-from abc import ABC
-from enum import Enum
+from abc import ABC, abstractmethod
 
-from ..typing import Dict, Callable, Any, Union, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union
 
-if TYPE_CHECKING:
-    from ..network.client.aioclient import AioClient, BaseClient
-    from ..network.server.aioserver import AioServer, BaseServer
-
-    Server = Union[AioServer, BaseServer]
-    Client = Union[AioClient, BaseClient]
-
-
-class JsonRpcMode(str, Enum):
-    JsonRpc2 = "2.0"
-    JsonRpcX = "X"
-    Auto = "Auto"
-
-
-class ListenEvent(str, Enum):
-    Exception = "Exception"
-
+from lacia.network.abcbase import BaseServer, BaseClient
+from lacia.standard.abcbase import Namespace
 
 class BaseJsonRpc(ABC):
-    _server: "Server"
-    _client: "Client"
-    _PATH: str
-    _HOST: str
-    _PORT: int
-    _Execer: bool = False
-    _JsonRpcMode: JsonRpcMode = JsonRpcMode.Auto
-    _Events: Dict[ListenEvent, Callable] = {}
-    _namespace: Dict[str, Any] = {}
+    
+    _server: Optional[BaseServer] = None
+    _client: Optional[BaseClient] = None
+    _Executor: bool = False
+    _namespace: Namespace
 
-    def on(self, event: ListenEvent, callback) -> None:
-        self._Events[event] = callback
-
-    async def __aenter__(self) -> "BaseJsonRpc":
-        return self
-
-    async def __aexit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    @abstractmethod
+    def run_server(self, server: BaseServer) -> None:
+        ...
+    
+    @abstractmethod
+    def run_client(self, client: BaseClient) -> None:
+        ...
+    
+    @abstractmethod
+    def is_server(self) -> bool:
         ...

@@ -1,47 +1,79 @@
 import asyncio
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import Optional, Tuple, TypeVar, List, Generic, Generator, Dict, Callable
 
-from ..hook import Hook
-from ..typing import Message, Optional, Tuple, TypeVar, List, Generic, Generator
+from lacia.types import Message
+from lacia.utils.hook import Hook
+from lacia.utils.tool import CallObj
 
-W = TypeVar('W')
+T = TypeVar('T')
 
-class BaseServer(Hook, Generic[W]):
-    active_connections: List[Tuple[W, asyncio.Event]]
+class Connection(Generic[T]):
+
+    def __init__(self):
+        self.ws: Dict[T, asyncio.Event] = {}
+        self.name_ws: Dict[str, T] = {}
+    
+    def set_ws(self, ws: T, event: asyncio.Event):
+        self.ws[ws] = event
+    
+    def set_name_ws(self, name: str, ws: T):
+        self.name_ws[name] = ws
+
+    def clear_ws(self, ws: T):
+        self.ws.pop(ws)
+        for name, _ws in self.name_ws.items():
+            if _ws == ws:
+                self.name_ws.pop(name)
+
+    def clear_name_ws(self, name: str):
+        self.name_ws.pop(name)
+    
+    def get_ws(self, name: str) -> T:
+        return self.name_ws[name]
+
+class  BaseServer(Generic[T]):
+    active_connections: Connection[T]
+    name_connections: Dict[str, T]
+    on_events: Dict[str, CallObj]
 
     @abstractmethod
-    async def receive(self, websocket: W) -> Message:
+    async def receive(self, websocket: T) -> Message:
         ...
 
     async def send(self, message) -> None:
         ...
 
     @abstractmethod
-    async def receive_json(self, websocket: W) -> Message:
+    async def receive_json(self, websocket: T) -> Message:
         ...
 
     @abstractmethod
-    async def receive_bytes(self, websocket: W) -> bytes:
+    async def receive_bytes(self, websocket: T) -> bytes:
         ...
 
     @abstractmethod
-    async def iter_bytes(self, websocket: W) -> Generator[bytes, None, None]:
+    async def iter_bytes(self, websocket: T) -> Generator[bytes, None, None]:
         ...
 
     @abstractmethod
-    async def iter_json(self, websocket: W) -> Generator[Message, None, None]:
+    async def iter_json(self, websocket: T) -> Generator[Message, None, None]:
         ...
 
     @abstractmethod
-    async def send_bytes(self, websocket: W, message: bytes) -> None:
+    async def send_bytes(self, websocket: T, message: bytes) -> None:
         ...
 
     @abstractmethod
-    async def send_json(self, websocket: W, message: Message, binary = True) -> None:
+    async def send_json(self, websocket: T, message: Message, binary = True) -> None:
         ...
 
     @abstractmethod
-    async def start(self, *args, **kwargs) -> "BaseServer":
+    async def start(self) -> "BaseServer":
+        ...
+
+    @abstractmethod
+    def on(self, event: str, func: Callable, args: Optional[tuple] = None, kwargs: Optional[dict] = None) -> None:
         ...
 
     @abstractmethod
@@ -51,11 +83,10 @@ class BaseServer(Hook, Generic[W]):
     def closed(self) -> bool:
         ...
 
-    @abstractmethod
-    def set_on_ws(self, Callable, *args, **kwargs):
-        ...
 
-class BaseClient(Hook):
+class BaseClient(Generic[T]):
+    ws: T
+    
     @abstractmethod
     async def receive(self) -> Message:
         ...
