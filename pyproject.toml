@@ -1,7 +1,7 @@
 
 [project]
 name = "lacia"
-version = "0.2.0"
+version = "0.2.0a1"
 description = "A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
 authors = [
     {name = "luxuncang", email = "luxuncang@qq.com"},
@@ -16,6 +16,16 @@ dependencies = [
 requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
+classifiers = [
+    "Typing :: Typed",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+repository = "https://github.com/luxuncang/lacia"
 
 [build-system]
 requires = ["pdm-backend"]
@@ -25,3 +35,6 @@ build-backend = "pdm.backend"
 dev = [
     "ruff>=0.1.5",
 ]
+
+[tool.pdm.build]
+includes = ["src/lacia"]
