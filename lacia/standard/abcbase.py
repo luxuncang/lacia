@@ -39,10 +39,6 @@ class BaseRunTime(ABC, Generic[S]):
     async def run(self, obj: S) -> Any:
         ...
 
-    @abstractmethod
-    async def async_run(self, obj: S) -> Any:
-        ...
-
 class BaseStandard(ABC, Generic[T, S]):
     
     datatrans: Type[BaseDataTrans[T]]

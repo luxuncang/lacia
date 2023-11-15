@@ -56,32 +56,6 @@ class RunTime(BaseRunTime[JsonAst]):
         else:
             return ast
 
-    async def async_run(self, ast: JsonAst):
-        if isinstance(ast, JsonAst):
-            if isinstance(ast.obj, JsonAst):
-                obj = self.async_run(ast.obj)
-            elif ast.obj is None:
-                obj = None
-            elif isinstance(ast.obj, str):
-                obj = self.namespace[ast.obj]
-            else:
-                raise TypeError(f"obj type error: {ast.obj}")
-            if ast.method is None:
-                return obj
-            func = getattr(obj, ast.method)
-            if ast.args is None and ast.kwargs is None:
-                return func
-            args = tuple(self.run(arg) for arg in ast.args) if ast.args else ()
-            kwargs = {k: self.run(v) for k, v in ast.kwargs.items()} if ast.kwargs else {}
-
-            if ast.method == "__call__" and asyncio.iscoroutinefunction(func):
-                return await func(*args, **kwargs)
-            if asyncio.iscoroutinefunction(func):
-                return await func(*args, **kwargs)
-            return func(*args, **kwargs)
-        else:
-            return ast
-
 class Standard(BaseStandard[dict, JsonAst]):
 
     _jsonrpc = "jsonast"
