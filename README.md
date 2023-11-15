@@ -8,7 +8,7 @@ _A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and
 
  [![CodeFactor](https://www.codefactor.io/repository/github/luxuncang/lacia/badge)](https://www.codefactor.io/repository/github/luxuncang/lacia)
  [![GitHub](https://img.shields.io/github/license/luxuncang/lacia)](https://github.com/luxuncang/lacia/blob/master/LICENSE)
- [![CodeQL](https://github.com/luxuncang/lacia/workflows/CodeQL/badge.svg)](https://github.com/luxuncang/lacia/blob/master/.github/workflows/codeql-analysis.yml)
+ [![CodeQL](https://github.com/luxuncang/lacia/workflows/CodeQL/badge.svg)](https://github.com/luxuncang/lacia/blob/master/.github/workflows/codeql.yml)
 
 </div>
 
