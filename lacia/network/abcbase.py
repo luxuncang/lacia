@@ -32,7 +32,7 @@ class Connection(Generic[T]):
     def get_ws(self, name: str) -> T:
         return self.name_ws[name]
 
-class  BaseServer(Generic[T]):
+class BaseServer(Generic[T]):
     active_connections: Connection[T]
     name_connections: Dict[str, T]
     on_events: Dict[str, CallObj]

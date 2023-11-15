@@ -12,7 +12,7 @@ from lacia.exception import JsonRpcWsConnectException
 
 
 
-class  AioClient(BaseClient):
+class AioClient(BaseClient):
     def __init__(
         self,
         path: str = "",
