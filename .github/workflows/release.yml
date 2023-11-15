@@ -2,6 +2,7 @@ name: Python Package Release
 
 on:
   push:
+    branches: [ "laica2.0" ]
     tags:
       - 'v*.*.*'  # 触发工作流的标签格式，遵循语义版本控制
 
