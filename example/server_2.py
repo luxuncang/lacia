@@ -3,11 +3,11 @@ import builtins
 
 from aiohttp import web
 
-from lacia.core.core import JsonRpc, clientvar
+from lacia.core.core import JsonRpc, Context
 from lacia.network.server.aioserver import AioServer
 
 async def get_ws():
-    ws = clientvar.get()
+    ws = Context.websocket.get()
     assert isinstance(ws, web.WebSocketResponse)
     return ws
 

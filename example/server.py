@@ -5,7 +5,7 @@ from lacia.network.server.aioserver import AioServer
 
 class Test:
 
-    def __init__(self, a, b) -> None:
+    def __init__(self, a, b):
         self.a = a
         self.b = b
     

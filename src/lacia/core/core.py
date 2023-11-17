@@ -17,7 +17,11 @@ from lacia.exception import JsonRpcInitException
 
 T = TypeVar("T")
 
-clientvar: ContextVar = ContextVar("websocket")
+class Context:
+    websocket: ContextVar = ContextVar("websocket")
+    name: ContextVar[str] = ContextVar("name")
+    namespace: ContextVar[Namespace] = ContextVar("namespace")
+    rpc: ContextVar = ContextVar("rpc")
 
 class JsonRpc(BaseJsonRpc, Generic[T]):
     
@@ -26,15 +30,17 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         name: str,
         execer: bool = True,
         namespace: Optional[Dict[str, Any]] = None,
+        token: Optional[str] = None,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         debug: bool = False,
-
+ 
     ) -> None:
         self._name = name
         self._execer = execer
         self._namespace = Namespace(
             globals=namespace if namespace else {},
         )
+        self._token = token
         self._loop = loop
         self._debug = debug
         self._uuid = str(uuid4())
@@ -68,24 +74,45 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
     
     async def _listening_client(self, websocket: T):
         logger.info("listening client")
-        clientvar.set(websocket)
-        
+        Context.websocket.set(websocket)
+        Context.namespace.set(self._namespace)
+        Context.rpc.set(self)
+
+        event = asyncio.Event()
+
+        def rpc_auto_register(name, token):
+            if self._server is not None:
+                self._server.active_connections.set_name_ws(name, websocket)
+            Context.name.set(name)
+            if token == self._token:
+                event.set()
+                return
+            raise JsonRpcInitException("rpc_auto_register fail")
+
         if self._namespace.locals.get(websocket) is None:
             self._namespace.locals[websocket] = {}
         if self._server:
-            self._namespace.locals[websocket]["rpc_auto_register"] = lambda name: self._server.active_connections.set_name_ws(name, websocket) # type: ignore
+            self._namespace.locals[websocket]["rpc_auto_register"] = rpc_auto_register
+
+        qmgs = asyncio.Queue()
+
+        if self._loop:
+            self._loop.create_task(self._client_auth(event, qmgs, websocket))
 
         if self._server is not None:
             async for message in self._server.iter_json(websocket):
-                
                 logger.info(f"receive: {message}")
                 msg = RpcMessage(message)
                 if msg.is_request and self._execer and self._loop:
-                    self._loop.create_task(self._s_execute(websocket, msg))
+                    if msg.is_auth:
+                        self._loop.create_task(self._s_execute(websocket, msg))
+                    else:
+                        qmgs.put_nowait(msg)
                 elif msg.is_response:
                     rmsg = ResultProxy(msg, core=self) # type: ignore
                     self._wait_result[msg.id] = rmsg
                     self._wait_remote[msg.id].set()
+                    
         else:
             raise JsonRpcInitException("server is None")
 
@@ -95,7 +122,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         if self._client is not None:
             
             if self._loop:
-                self._loop.create_task(self.run(ProxyObj().rpc_auto_register(self._name)))
+                self._loop.create_task(self.run(ProxyObj().rpc_auto_register(self._name, self._token)))
 
             async for message in self._client.iter_json():
                 logger.info(f"receive: {message}")
@@ -215,6 +242,14 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         await event.wait()
 
         return self._wait_result.pop(uuid_str)
+
+    async def _client_auth(self, event: asyncio.Event, qmgs: asyncio.Queue, websocket: T):
+        await event.wait()
+        if self._server is not None:
+            Context.name.set(self._server.active_connections.get_name(websocket))
+        while True:
+            msg = await qmgs.get()
+            await self._s_execute(websocket, msg)
 
     def _pretreatment(self, data: Any) -> Any:
         try:

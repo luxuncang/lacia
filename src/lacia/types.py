@@ -29,8 +29,8 @@ class RpcMessage:
         return self.data.get("id", None)
 
     @property
-    def method(self) -> str:
-        return self.data.get("method", None)
+    def method(self):
+        return self.data.get("method", {})
 
     @property
     def result(self) -> Any:
@@ -59,3 +59,12 @@ class RpcMessage:
     @property
     def is_response(self) -> bool:
         return "result" in self.data or "error" in self.data
+
+    @property
+    def is_auth(self) -> bool:
+
+        return all(
+            [
+                self.method["obj"] == {'obj': None, 'method': '__getattr__', 'args': ['rpc_auto_register'], 'kwargs': {}},
+            ]
+        )

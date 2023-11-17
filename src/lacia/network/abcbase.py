@@ -30,6 +30,12 @@ class Connection(Generic[T]):
     
     def get_ws(self, name: str) -> T:
         return self.name_ws[name]
+    
+    def get_name(self, ws: T) -> str:
+        for name, _ws in self.name_ws.items():
+            if _ws == ws:
+                return name
+        raise KeyError("no such websocket")
 
 class BaseServer(Generic[T]):
     active_connections: Connection[T]
