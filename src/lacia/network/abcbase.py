@@ -1,9 +1,8 @@
 import asyncio
 from abc import abstractmethod
-from typing import Optional, Tuple, TypeVar, List, Generic, Generator, Dict, Callable
+from typing import Optional, TypeVar, Generic, Generator, Dict, Callable
 
 from lacia.types import Message
-from lacia.utils.hook import Hook
 from lacia.utils.tool import CallObj
 
 T = TypeVar('T')

@@ -29,7 +29,7 @@ class AioServer(BaseServer[web.WebSocketResponse]):
         self.host = host
         self.port = port
 
-    def start(self) -> None:
+    def start(self) -> None: 
         self.app.add_routes([web.get(self.path, self.websocket_handler)])
         if self.loop is None: 
             self.loop = asyncio.get_event_loop()

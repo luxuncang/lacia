@@ -1,20 +1,23 @@
 import asyncio
 import json
 from uuid import uuid4
-from typing import Dict, Any, Optional, TypeVar, Generic, overload
+from contextvars import ContextVar
+from typing import Dict, Any, Optional, TypeVar, Generic
 
 from nest_asyncio import apply as nest_apply
 
 from lacia.core.abcbase import BaseJsonRpc
 from lacia.core.proxy import BaseProxy, ResultProxy, ProxyObj
 from lacia.network.abcbase import BaseServer, BaseClient
-from lacia.standard.abcbase import BaseStandard, BaseDataTrans, Namespace
+from lacia.standard.abcbase import BaseDataTrans, Namespace
 from lacia.standard.execute import Standard
 from lacia.logger import logger
 from lacia.types import RpcMessage
 from lacia.exception import JsonRpcInitException
 
 T = TypeVar("T")
+
+clientvar: ContextVar = ContextVar("websocket")
 
 class JsonRpc(BaseJsonRpc, Generic[T]):
     
@@ -65,6 +68,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
     
     async def _listening_client(self, websocket: T):
         logger.info("listening client")
+        clientvar.set(websocket)
         
         if self._namespace.locals.get(websocket) is None:
             self._namespace.locals[websocket] = {}
@@ -142,7 +146,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
             msg = {
                 "jsonrpc": message.jsonrpc,
                 "id": message.id,
-                "result": result
+                "result": self._pretreatment(result)
             }
         else:
             msg = {

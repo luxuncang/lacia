@@ -25,8 +25,6 @@ async def test_async_iter(n: int):
         await asyncio.sleep(1)
         yield i
 
-    
-
 namespace = {
     "ping": lambda x: f"pong {x}",
     "test_async": test_async,
