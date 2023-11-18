@@ -41,7 +41,7 @@ includes = ["src/lacia"]
 
 [tool.pdm.scripts]
 client.cmd = "python example/client.py"
-client.env = {PYTHONPATH = "/home/micang/work/code/lacia/src"}
+client.env = {PYTHONPATH = "src"}
 
 server.cmd = "python example/server.py"
-server.env = {PYTHONPATH = "/home/micang/work/code/lacia/src"}
+server.env = {PYTHONPATH = "src"}
