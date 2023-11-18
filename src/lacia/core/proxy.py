@@ -32,6 +32,8 @@ class ProxyObj(BaseProxy):
         self._name = name
 
     def __getattr__(self, name: str) -> "ProxyObj":
+        self = self._newobj()
+
         obj = JsonAst( 
             obj=self._obj,
             method="__getattr__",
@@ -43,19 +45,15 @@ class ProxyObj(BaseProxy):
 
     def __call__(self, *args, **kwargs) -> "ProxyObj":
 
+        self = self._newobj()
+
         n_args = []
         n_kwargs = {}
         for i in args:
-            if isinstance(i, ProxyObj):
-                n_args.append(i._obj)
-            else:
-                n_args.append(i)
+            n_args.append(self._expand(i))
         
         for k,v in kwargs.items():
-            if isinstance(v, ProxyObj):
-                n_kwargs[k] = v
-            else:
-                n_kwargs[k] = v
+            n_kwargs[k] = self._expand(v)
 
         obj = JsonAst(
             obj=self._obj,
@@ -66,10 +64,29 @@ class ProxyObj(BaseProxy):
         self._obj = obj
         return self
 
-    def __next__(self):
-        ...
+    def _expand(self, obj: Any):
+        if isinstance(obj, ProxyObj):
+            return obj._obj
+        elif isinstance(obj, list):
+            return [self._expand(i) for i in obj]
+        elif isinstance(obj, dict):
+            return {k: self._expand(v) for k, v in obj.items()}
+        elif isinstance(obj, tuple):
+            return tuple(self._expand(i) for i in obj)
+        elif isinstance(obj, set):
+            return {self._expand(i) for i in obj}
+        else:
+            return obj
+
+    def _newobj(self):
+        new = ProxyObj(self._core, self._name)
+        setattr(new, "_obj", self._obj)
+        setattr(new, "_aiter", self._aiter)
+        return new
 
     def __aiter__(self):
+        self = self._newobj()
+
         obj = JsonAst(
             obj=self._obj,
             method="__aiter__",
@@ -81,6 +98,8 @@ class ProxyObj(BaseProxy):
         return self
     
     def __anext_proxy__(self):
+        self = self._newobj()
+
         obj = JsonAst(
             obj=self._obj,
             method="__anext__",

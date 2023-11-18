@@ -64,7 +64,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
     
     async def run_server(self, server: BaseServer) -> None:
         self._loop = self._loop or asyncio.get_event_loop()
-        nest_apply(self._loop)
+        nest_apply()
         self._standard.init_standard()
         self._server = server
         self._server.on("connect", self._listening_client)
