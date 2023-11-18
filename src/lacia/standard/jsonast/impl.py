@@ -30,21 +30,25 @@ class BaseJsonAst(NamedTuple):
     @classmethod
     def fromdict(cls, d: dict):
         return cls(
-            obj=cls.fromdict(d["obj"]) if isinstance(d["obj"], dict) else d["obj"],
+            obj=cls.fromdict(d["obj"]) if cls.is_jsonast(d["obj"]) else d["obj"],
             method=d["method"],
             args=tuple(
-                cls.fromdict(arg) if isinstance(arg, dict) else arg
+                cls.fromdict(arg) if cls.is_jsonast(arg) else arg
                 for arg in d["args"]
             )
             if d["args"]
             else d["args"],
             kwargs={
-                k: cls.fromdict(v) if isinstance(v, dict) else v
+                k: cls.fromdict(v) if cls.is_jsonast(v) else v
                 for k, v in d["kwargs"].items()
             }
             if d["kwargs"]
             else d["kwargs"],
         )
+    
+    @classmethod
+    def is_jsonast(cls, obj: Any) -> bool:
+        return isinstance(obj, dict) and "obj" in obj and "method" in obj and "args" in obj and "kwargs" in obj and len(obj) == 4
 
 class JsonAst(BaseJsonAst, BaseDataTrans[dict]):
 

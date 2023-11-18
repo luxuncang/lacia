@@ -1,7 +1,7 @@
 
 [project]
 name = "lacia"
-version = "0.2.0beta6"
+version = "0.2.0beta7"
 description = "A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and `Json-Rpc 2.0` and `Json-Rpc X`, supports multiple network protocols and backend frameworks and supports bidirectional calls."
 authors = [
     {name = "luxuncang", email = "luxuncang@qq.com"},
@@ -46,3 +46,6 @@ client.env = {PYTHONPATH = "src"}
 
 server.cmd = "python example/server.py"
 server.env = {PYTHONPATH = "src"}
+
+test.cmd = "python tests/jsonast.py"
+test.env = {PYTHONPATH = "src"}
