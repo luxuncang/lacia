@@ -111,8 +111,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
                 elif msg.is_response:
                     rmsg = ResultProxy(msg, core=self) # type: ignore
                     self._wait_result[msg.id] = rmsg
-                    self._wait_remote[msg.id].set()
-                    
+                    self._wait_remote[msg.id].set()    
         else:
             raise JsonRpcInitException("server is None")
 
@@ -134,7 +133,6 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
                     rmsg = ResultProxy(msg, core=self) # type: ignore
                     self._wait_result[msg.id] = rmsg
                     self._wait_remote[msg.id].set()
-            return
         else:
             raise JsonRpcInitException("client is None")
     

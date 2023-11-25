@@ -50,6 +50,7 @@ class AioClient(BaseClient):
         elif data and data.type == aiohttp.WSMsgType.BINARY:
             data = bson.loads(data.data)
             return data
+        raise JsonRpcWsConnectException("Invalid data type.")
 
     async def receive_bytes(self):
         data = await self.receive()
@@ -63,11 +64,11 @@ class AioClient(BaseClient):
                 if data:
                     yield data
         except JsonRpcWsConnectException as e:
-            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            logger.error(f"http://{self.host}:{self.port}{self.path} closed.")
             await self.close()
         except Exception as e:
             logger.error(e)
-            logger.info(f"http://{self.host}:{self.port}{self.path} closed.")
+            logger.error(f"http://{self.host}:{self.port}{self.path} closed.")
             await self.close()
         finally:
             return
