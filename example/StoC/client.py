@@ -23,10 +23,5 @@ async def main():
 
     print(dict_headers)
 
-
-
-
-
-
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

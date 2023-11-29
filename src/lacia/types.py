@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from enum import Enum
+from contextvars import ContextVar
+from typing import Dict, Any, TYPE_CHECKING
 
-from typing import Dict, Any
+if TYPE_CHECKING:
+    from lacia.standard.abcbase import Namespace
 
 Message = Dict[str, Any]
 
@@ -65,6 +68,12 @@ class RpcMessage:
 
         return all(
             [
-                self.method["obj"] == {'obj': None, 'method': '__getattr__', 'args': ['rpc_auto_register'], 'kwargs': {}},
+                self.method["obj"] == {'obj': ["server", None], 'method': '__getattr__', 'args': ['rpc_auto_register'], 'kwargs': {}},
             ]
         )
+
+class Context:
+    websocket: ContextVar = ContextVar("websocket")
+    name: ContextVar[str] = ContextVar("name")
+    namespace: ContextVar[Namespace] = ContextVar("namespace")
+    rpc: ContextVar = ContextVar("rpc")

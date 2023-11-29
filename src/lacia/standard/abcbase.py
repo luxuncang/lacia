@@ -32,8 +32,10 @@ class BaseDataTrans(ABC, Generic[T]):
 
 class BaseRunTime(ABC, Generic[S]):
 
-    def __init__(self, namespace: Dict[str, Any]):
+    def __init__(self, namespace: Dict[str, Any], proxy, proxyresult):
         self.namespace = namespace
+        self.proxy = proxy
+        self.proxyresult = proxyresult
 
     @abstractmethod
     async def run(self, obj: S) -> Any:

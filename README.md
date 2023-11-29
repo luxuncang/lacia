@@ -26,8 +26,8 @@ pdm add lacia
 
 * [X] 跨语言
   * [X] `Python3`
-  * [ ] `JavaScript`
-  * [ ] `Go`
+  * [ ] `JavaScript/TypeScript`
+  * [ ] `Golang`
   * [ ] `C/C++`
   * [ ] `Java`
   * [ ] `Rust`
@@ -40,8 +40,8 @@ pdm add lacia
     * [ ] 兼容 Json-Rpc 2.0 规范
     * [ ] 兼容 Json-Rpc X 规范
 * [X] 支持完备的链式调用
-* [X] 支持嵌套调用
-* [X] 支持双向调用
+* [X] 支持嵌套调用 
+* [X] 支持双向调用 (StoC, CtoS, CtoC)
 * [X] 双向流式传输
 * [X] 支持 BSON
 * [ ] IDE 支持
@@ -279,6 +279,72 @@ loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 ```
 
+### 反向流式调用
+
+**Server 端**
+
+```python
+
+import asyncio
+from lacia.core.core import JsonRpc, Context
+from lacia.core.proxy import ProxyObj
+from lacia.network.server.aioserver import AioServer
+
+async def test_async_iter(n: int):
+    name = Context.name.get()
+    obj = ProxyObj(Context.rpc.get(), name)
+    async for i in obj.test_async_iter(n):
+        yield i
+
+namespace = {
+    "test_async_iter": test_async_iter,
+}
+
+rpc = JsonRpc(name = "server_test", namespace=namespace)
+
+async def main():
+    await rpc.run_server(AioServer(path="/ws"))
+
+asyncio.run(main())
+```
+
+**Client 端**
+
+```python
+import asyncio
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
+
+async def test_async_iter(n: int):
+    for i in range(n):
+        await asyncio.sleep(1)
+        yield i
+
+namespace = {
+    "test_async_iter": test_async_iter,
+}
+
+rpc = JsonRpc(
+    name="client_test",
+    namespace=namespace
+)
+
+async def main():
+
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
+
+    proxy = ProxyObj(rpc).test_async_iter
+
+    async for i in proxy(3):
+        print(i)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+```
+
+
 ### 嵌套调用
 
 **Server 端**
@@ -343,6 +409,96 @@ async def main():
     proxy2 = ProxyObj(rpc).class_sum(proxy1)
 
     assert await proxy2 == 3
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+```
+
+### Client to Client
+
+**Server 端**
+
+```python
+import asyncio
+from lacia.core.core import JsonRpc, Context
+from lacia.core.proxy import ProxyObj
+from lacia.network.server.aioserver import AioServer
+
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
+
+rpc = JsonRpc(name = "server_test")
+
+async def main():
+    await rpc.run_server(AioServer(path="/ws"))
+
+asyncio.run(main())
+```
+
+**Client 端 A**
+
+```python
+import asyncio
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
+
+async def test_async_iter(n: int):
+    for i in range(n):
+        await asyncio.sleep(1)
+        yield i
+
+namespace = {
+    "ping": lambda x: f"pong {x}",
+    "test_async_iter": test_async_iter,
+}
+
+rpc = JsonRpc(
+    name="client_test_A",
+    namespace=namespace
+)
+
+async def main():
+
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.run_forever()
+```
+
+**Client 端 B**
+
+```python
+import asyncio
+from lacia.core.core import JsonRpc
+from lacia.core.proxy import ProxyObj
+from lacia.network.client.aioclient import AioClient
+
+namespace = {
+    "ping": lambda x: f"pong {x}",
+}
+
+rpc = JsonRpc(
+    name="client_test_B",
+    namespace=namespace
+)
+
+async def main():
+
+    client = AioClient(path="/ws")
+    await rpc.run_client(client)
+
+    c_obj = ProxyObj(rpc, "client_test_A")
+    s_obj = ProxyObj(rpc)
+
+    async for i in c_obj.test_async_iter(10):
+        print(i)
+    
+    print(await s_obj.ping(c_obj.ping("hello")))
+    print(await c_obj.ping(s_obj.ping("hello")))
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

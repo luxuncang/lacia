@@ -31,16 +31,19 @@ class Standard(Generic[S]):
                 yield getattr(subclass, "_jsonrpc"), subclass 
 
     @classmethod
-    async def rpc_request(cls, data: dict, namespace: dict):
+    async def rpc_request(cls, data: dict, namespace: dict, proxy, proxyresult):
         jsonrpc = data.get("jsonrpc")
         result, error = None, None
         if jsonrpc is None:
             return None, {"code": JsonRpcCode.ParseError, "message": "jsonrpc is None"}
         elif jsonrpc in cls.execute:
-            runtime: BaseRunTime = cls.execute[jsonrpc].runtime(namespace)
+            runtime: BaseRunTime = cls.execute[jsonrpc].runtime(namespace, proxy, proxyresult)
             obj = cls.execute[jsonrpc].datatrans.loads(data["method"]) # type: ignore
             try:
                 result = await runtime.run(obj)
+                if isinstance(result, proxyresult):
+                    if not data["method"]["method"] in ("__aiter__", "__anext__"):
+                        result = result.visions
             except StopAsyncIteration as e:
                 return result, {"code": JsonRpcCode.StopAsyncIterationError, "message": ""}
             except Exception as e:

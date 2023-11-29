@@ -1,11 +1,11 @@
-from typing import NamedTuple, Tuple, Dict, Optional, Any, Union, TypeVar
+from typing import NamedTuple, Tuple, Dict, Optional, Any, Union, TypeVar, List
 
 from lacia.standard.abcbase import BaseDataTrans
 
 T = TypeVar("T")
 
 class BaseJsonAst(NamedTuple):
-    obj: Union[str, "JsonAst", None]
+    obj: Union[str, "JsonAst", None, List[str]]
     method: Optional[str]
     args: Optional[Tuple[Any, ...]] # Optional[Tuple[Union[str, "JsonAst"], ...]]
     kwargs: Optional[Dict[str, Any]] # Optional[Dict[str, "JsonAst" | Any]]

@@ -2,7 +2,7 @@ import asyncio
 
 from lacia.logger import logger
 from lacia.standard.jsonast.runtime import RunTime, Standard, Namespace, JsonAst
-from lacia.core.proxy import ProxyObj
+from lacia.core.proxy import ProxyObj, ResultProxy
 
 async def test_aping(x):
     return f"pong: {x}"
@@ -39,7 +39,7 @@ namespace = {
 class Test:
 
     async def test_attribute(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astboj = obj.test_attribute._obj
@@ -49,7 +49,7 @@ class Test:
         assert r == "Hello World!"
 
     async def test_ping(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astboj = obj.test_ping("hello")._obj
@@ -59,7 +59,7 @@ class Test:
         assert r == "pong: hello"
 
     async def test_aping(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astboj = obj.test_aping("hello")._obj
@@ -69,7 +69,7 @@ class Test:
         assert r == "pong: hello"
 
     async def test_class_init(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astboj = obj.test_class_init(1, b=3).sum()._obj
@@ -79,7 +79,7 @@ class Test:
         assert r == 4
 
     async def test_class_attribute(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astobj = obj.test_class_init(1, b=3).a._obj
@@ -89,7 +89,7 @@ class Test:
         assert r == 1
 
     async def test_object_nest(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         a_obj = ProxyObj().test_ping("ping")
         b_obj = ProxyObj().test_class_init(1, b=3).test_return(a_obj)
         c_obj = ProxyObj()
@@ -101,7 +101,7 @@ class Test:
         assert r == "pong: return: pong: ping"
 
     async def test_getattr(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = getattr(ProxyObj(), "test_ping")("ping")
 
         astobj = obj._obj
@@ -111,7 +111,7 @@ class Test:
         assert r == "pong: ping"
 
     async def test_loads_dumps(self):
-        runtime = Standard.runtime(namespace)
+        runtime = Standard.runtime(namespace, ProxyObj, ResultProxy)
         obj = ProxyObj()
 
         astobj = obj.Test(1, b=2, c={"c": 3})._obj
