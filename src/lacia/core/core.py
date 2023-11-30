@@ -5,6 +5,8 @@ from typing import Dict, Any, Optional, TypeVar, Generic
 
 from nest_asyncio import apply as nest_apply
 
+import bson
+
 from lacia.core.abcbase import BaseJsonRpc
 from lacia.core.proxy import BaseProxy, ResultProxy, ProxyObj
 from lacia.network.abcbase import BaseServer, BaseClient
@@ -250,7 +252,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
 
     def _pretreatment(self, data: Any) -> Any:
         try:
-            json.dumps(data)
+            bson.dumps({"data": data})
             return data
         except TypeError:
             return str(data)
