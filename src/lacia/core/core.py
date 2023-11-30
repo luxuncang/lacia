@@ -5,8 +5,6 @@ from typing import Dict, Any, Optional, TypeVar, Generic
 
 from nest_asyncio import apply as nest_apply
 
-import bson
-
 from lacia.core.abcbase import BaseJsonRpc
 from lacia.core.proxy import BaseProxy, ResultProxy, ProxyObj
 from lacia.network.abcbase import BaseServer, BaseClient
@@ -251,8 +249,13 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
             await self._s_execute(websocket, msg)
 
     def _pretreatment(self, data: Any) -> Any:
+        class BytesEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, bytes):
+                    return None
+                return super().default(obj)
         try:
-            bson.dumps({"data": data})
+            json.dumps(data, cls=BytesEncoder)
             return data
         except TypeError:
             return str(data)

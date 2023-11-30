@@ -6,7 +6,7 @@ from lacia.network.client.aioclient import AioClient
 async def test_async_iter(n: int):
     for i in range(n):
         await asyncio.sleep(1)
-        yield i
+        yield i, b"hello world"
 
 namespace = {
     "ping": lambda x: f"pong {x}",
