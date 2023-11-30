@@ -41,6 +41,8 @@ class Standard(Generic[S]):
             obj = cls.execute[jsonrpc].datatrans.loads(data["method"]) # type: ignore
             try:
                 result = await runtime.run(obj)
+                if isinstance(result, proxy):
+                    result = await result
                 if isinstance(result, proxyresult):
                     if not data["method"]["method"] in ("__aiter__", "__anext__"):
                         result = result.visions

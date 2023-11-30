@@ -26,6 +26,8 @@ async def main():
     c_obj = ProxyObj(rpc, "client_test_2")
     s_obj = ProxyObj(rpc)
 
+    print(await c_obj.Test(1, 2).a)
+
     async for i in s_obj.test_async_iter(10):
         print(i)
     
@@ -34,6 +36,7 @@ async def main():
     
     print(await s_obj.ping(c_obj.ping("hello")))
     print(await c_obj.ping(s_obj.ping("hello")))
+    print(await c_obj.ping(c_obj.Test(1, 2).a))
 
 
 loop = asyncio.get_event_loop()

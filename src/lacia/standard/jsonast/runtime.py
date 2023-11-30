@@ -46,10 +46,7 @@ class RunTime(BaseRunTime[JsonAst]):
                 return obj
             if not ast.args is None:
                 if len(ast.args) == 1 and ast.method == "__getattr__" and isinstance(ast.args[0], str):
-                    print(obj, ast.args[0])
                     return getattr(obj, ast.args[0])
-            if isinstance(obj, self.proxyresult):
-                print(obj, type(obj), ast.method, obj._by)
             func = getattr(obj, ast.method)
             if ast.args is None and ast.kwargs is None: 
                 return func
@@ -74,8 +71,10 @@ class RunTime(BaseRunTime[JsonAst]):
             elif asyncio.iscoroutinefunction(func):
                 return await func(*args, **kwargs)
             elif isinstance(obj, self.proxy):
-                return await func(*args, **kwargs)
+                return func(*args, **kwargs)
             return func(*args, **kwargs)
+        elif isinstance(ast, self.proxy):
+            return await ast
         elif isinstance(ast, self.proxyresult):
             return ast.visions
         else:
