@@ -15,11 +15,11 @@ _A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and
 ## 安装
 
 ```bash
-pip install lacia
+pip install lacia==0.2.0rc1
 ```
 
 ```bash
-pdm add lacia
+pdm add lacia --pre
 ```
 
 ## 特性
