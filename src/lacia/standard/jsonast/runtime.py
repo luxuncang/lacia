@@ -21,7 +21,7 @@ class RunTime(BaseRunTime[JsonAst]):
         # self.is_server = True
         # self.self_name = "server_test"
 
-    async def run(self, ast: JsonAst):
+    async def run(self, ast):
         if isinstance(ast, JsonAst):
             if isinstance(ast.obj, JsonAst):
                 obj = await self.run(ast.obj)
@@ -52,20 +52,16 @@ class RunTime(BaseRunTime[JsonAst]):
                 return func
             if ast.method == "__anext__":
                 return await func()
+
             args = []
             kwargs = {}
             for i in ast.args or ():
                 args.append(await self.run(i))
-            for i in range(len(args)):
-                if isinstance(args[i], self.proxyresult):
-                    args[i] = args[i].visions
             if ast.kwargs:
                 for k,v in ast.kwargs.items():
                     kwargs[k] = await self.run(v)
-                for k,v in kwargs.items():
-                    if isinstance(v, self.proxyresult):
-                        kwargs[k] = v.visions
             args = tuple(args)
+
             if ast.method == "__call__" and asyncio.iscoroutinefunction(obj):
                 return await func(*args, **kwargs)
             elif asyncio.iscoroutinefunction(func):
@@ -77,6 +73,13 @@ class RunTime(BaseRunTime[JsonAst]):
             return await ast
         elif isinstance(ast, self.proxyresult):
             return ast.visions
+        elif isinstance(ast, (list, tuple)):
+            t_args = []
+            for i in ast:
+                t_args.append(await self.run(i))
+            return type(ast)(t_args)
+        elif isinstance(ast, dict):
+            return {k: await self.run(v) for k, v in ast.items()}
         else:
             return ast
 

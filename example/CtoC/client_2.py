@@ -2,6 +2,7 @@ import asyncio
 from lacia.core.core import JsonRpc
 from lacia.core.proxy import ProxyObj
 from lacia.network.client.aioclient import AioClient
+from dataclasses import dataclass
 
 class Test:
 
@@ -14,10 +15,34 @@ async def test_async_iter(n: int):
         await asyncio.sleep(1)
         yield i
 
+
+@dataclass
+class Image:
+    data: bytes
+    mime: str
+
+    @classmethod
+    def of(cls, data: bytes, mime: str):
+        return cls(data, mime)
+
+class Save:
+
+    async def save(self, uid, image: list[Image]):
+        print(uid)
+        print(image[0].mime)
+        print(image[0].data)
+
+class App:
+
+    def get_save(self, name):
+        return Save()
+
 namespace = {
     "ping": lambda x: f"pong {x}",
     "test_async_iter": test_async_iter,
     "Test": Test,
+    "App": App(),
+    "Image": Image,
 }
 
 rpc = JsonRpc(

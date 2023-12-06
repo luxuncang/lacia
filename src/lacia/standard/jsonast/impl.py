@@ -11,39 +11,40 @@ class BaseJsonAst(NamedTuple):
     kwargs: Optional[Dict[str, Any]] # Optional[Dict[str, "JsonAst" | Any]]
     
     def todict(self):
+        def handle_value(value):
+            if isinstance(value, BaseJsonAst):
+                return value.todict()
+            elif isinstance(value, (list, tuple)):
+                return type(value)(handle_value(v) for v in value)
+            elif isinstance(value, dict):
+                return {k: handle_value(v) for k, v in value.items()}
+            else:
+                return value
+
         return {
-            "obj": self.obj.todict() if isinstance(self.obj, JsonAst) else self.obj,
+            "obj": handle_value(self.obj),
             "method": self.method,
-            "args": tuple(
-                arg.todict() if isinstance(arg, JsonAst) else arg for arg in self.args
-            )
-            if self.args
-            else self.args,
-            "kwargs": {
-                k: v.todict() if isinstance(v, JsonAst) else v
-                for k, v in self.kwargs.items()
-            }
-            if self.kwargs
-            else self.kwargs,
+            "args": handle_value(self.args),
+            "kwargs": handle_value(self.kwargs),
         }
 
     @classmethod
     def fromdict(cls, d: dict):
+        def handle_value(value):
+            if isinstance(value, dict) and cls.is_jsonast(value):
+                return cls.fromdict(value)
+            elif isinstance(value, (list, tuple)):
+                return type(value)(handle_value(v) for v in value)
+            elif isinstance(value, dict):
+                return {k: handle_value(v) for k, v in value.items()}
+            else:
+                return value
+
         return cls(
-            obj=cls.fromdict(d["obj"]) if cls.is_jsonast(d["obj"]) else d["obj"],
+            obj=handle_value(d["obj"]), # type: ignore
             method=d["method"],
-            args=tuple(
-                cls.fromdict(arg) if cls.is_jsonast(arg) else arg
-                for arg in d["args"]
-            )
-            if d["args"]
-            else d["args"],
-            kwargs={
-                k: cls.fromdict(v) if cls.is_jsonast(v) else v
-                for k, v in d["kwargs"].items()
-            }
-            if d["kwargs"]
-            else d["kwargs"],
+            args=handle_value(d["args"]),  # type: ignore
+            kwargs=handle_value(d["kwargs"]),  # type: ignore
         )
     
     @classmethod

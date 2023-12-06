@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 from lacia.core.core import JsonRpc
 from lacia.core.proxy import ProxyObj
 from lacia.network.client.aioclient import AioClient
@@ -38,6 +39,12 @@ async def main():
     print(await c_obj.ping(s_obj.ping("hello")))
     print(await c_obj.ping(c_obj.Test(1, 2).a))
 
+    img = c_obj.Image.of(
+        data=b"ksk",
+        mime=mimetypes.guess_type("kcito.jpg")[0]
+    )
+    save = c_obj.App.get_save(name="test")
+    await save.save(123, [img])
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

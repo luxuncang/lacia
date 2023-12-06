@@ -97,7 +97,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
 
         if self._server is not None:
             async for message in self._server.iter_json(websocket):
-                logger.info(f"receive: {message}")
+                logger.debug(f"receive: {message}")
                 msg = RpcMessage(message)
                 if msg.is_request and self._execer and self._loop:
                     if msg.is_auth:
@@ -124,7 +124,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
                 self._loop.create_task(self.run(ProxyObj().rpc_auto_register(self._name, self._token)))
 
             async for message in self._client.iter_json():
-                logger.info(f"receive: {message}")
+                logger.debug(f"receive: {message}")
                 msg = RpcMessage(message)
 
                 if msg.is_request and self._execer and self._loop:
@@ -156,7 +156,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
                 "error": error
             }
         if self._server is not None:
-            logger.info(f"send: {msg}")
+            logger.debug(f"send: {msg}")
             
             await self._server.send_json(websocket, msg)
     
@@ -181,7 +181,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
             }
 
         if self._client is not None:
-            logger.info(f"send: {msg}")
+            logger.debug(f"send: {msg}")
             await self._client.send_json(msg) 
 
     def on_client_close(self, websocket: T):
