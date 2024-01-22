@@ -1,5 +1,6 @@
 import asyncio
 import json
+import richuru
 from uuid import uuid4
 from typing import Dict, Any, Optional, TypeVar, Generic
 
@@ -42,6 +43,9 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         self._wait_result: Dict[str, ResultProxy] = {}
 
         self._standard = Standard()
+
+        if self._debug:
+            richuru.install(level="DEBUG")
 
     def add_namespace(self, namespace: Dict[str, Any]) -> None:
         self._namespace.globals.update(namespace)
@@ -206,7 +210,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         }
 
         if self._client is not None:
-            logger.info(f"send: {msg}")
+            logger.debug(f"send: {msg}")
             await self._client.send_json(msg)
         else:
             raise JsonRpcInitException("server and client are None R")
@@ -231,7 +235,7 @@ class JsonRpc(BaseJsonRpc, Generic[T]):
         }
 
         if self._server is not None:
-            logger.info(f"send: {msg}")
+            logger.debug(f"send: {msg}")
             await self._server.send_json(self._server.active_connections.get_ws(name), msg)
         else:
             raise JsonRpcInitException("server and client are None S")
