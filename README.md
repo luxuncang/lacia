@@ -15,7 +15,7 @@ _A modern `Json-Rpc/Bson-Rpc` implementation, compatible with `Json-Rpc Ast` and
 ## 安装
 
 ```bash
-pip install lacia==0.2.0rc1
+pip install lacia>=0.2.0rc1
 ```
 
 ```bash
